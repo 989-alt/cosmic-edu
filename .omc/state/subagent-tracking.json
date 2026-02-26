@@ -1,0 +1,17 @@
+{
+  "agents": [
+    {
+      "agent_id": "a339c04",
+      "agent_type": "oh-my-claudecode:qa-tester",
+      "started_at": "2026-02-26T16:55:51.758Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-02-26T17:04:55.094Z",
+      "duration_ms": 543336
+    }
+  ],
+  "total_spawned": 1,
+  "total_completed": 1,
+  "total_failed": 0,
+  "last_updated": "2026-02-26T17:47:08.242Z"
+}

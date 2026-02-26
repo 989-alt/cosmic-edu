@@ -1,0 +1,334 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1772079283459,
+  "projectRoot": "C:\\Users\\hit\\Desktop\\바이브코딩 공모전\\science simulator\\cosmic-edu",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "react",
+        "version": "19.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "vite",
+        "version": "7.3.1",
+        "category": "build"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "vite",
+      "build": "tsc -b && vite build",
+      "lint": "eslint .",
+      "preview": "vite preview"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": "type-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "public",
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 2,
+      "lastAccessed": 1772079283411,
+      "keyFiles": [
+        "index.html",
+        "vite.svg"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 1,
+      "lastAccessed": 1772079283421,
+      "keyFiles": [
+        "vite.svg"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 4,
+      "lastAccessed": 1772079283421,
+      "keyFiles": [
+        "App.css",
+        "App.tsx",
+        "index.css",
+        "main.tsx"
+      ]
+    },
+    "dist\\assets": {
+      "path": "dist\\assets",
+      "purpose": "Static assets",
+      "fileCount": 2,
+      "lastAccessed": 1772079283422,
+      "keyFiles": [
+        "index-BPZOc-kf.css",
+        "index-Clji0f6a.js"
+      ]
+    },
+    "src\\assets": {
+      "path": "src\\assets",
+      "purpose": "Static assets",
+      "fileCount": 1,
+      "lastAccessed": 1772079283422,
+      "keyFiles": [
+        "react.svg"
+      ]
+    },
+    "src\\components": {
+      "path": "src\\components",
+      "purpose": "UI components",
+      "fileCount": 9,
+      "lastAccessed": 1772079283423,
+      "keyFiles": [
+        "AboutModal.css",
+        "AboutModal.tsx",
+        "ControlHints.tsx"
+      ]
+    },
+    "src\\data": {
+      "path": "src\\data",
+      "purpose": "Data files",
+      "fileCount": 5,
+      "lastAccessed": 1772079283423,
+      "keyFiles": [
+        "constellations.ts",
+        "eclipseData.ts",
+        "moonPhases.ts"
+      ]
+    },
+    "src\\utils": {
+      "path": "src\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 4,
+      "lastAccessed": 1772079283424,
+      "keyFiles": [
+        "mathUtils.ts",
+        "performanceDetector.ts",
+        "scaleHelper.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src\\modules\\grade6-rotation\\DayNight.tsx",
+      "accessCount": 12,
+      "lastAccessed": 1772126981593,
+      "type": "file"
+    },
+    {
+      "path": "src\\App.tsx",
+      "accessCount": 12,
+      "lastAccessed": 1772127919410,
+      "type": "file"
+    },
+    {
+      "path": "src\\modules\\grade6-season\\SeasonalAltitude.tsx",
+      "accessCount": 11,
+      "lastAccessed": 1772126174814,
+      "type": "file"
+    },
+    {
+      "path": "src\\index.css",
+      "accessCount": 9,
+      "lastAccessed": 1772127982449,
+      "type": "file"
+    },
+    {
+      "path": "src\\modules\\grade6-season\\DailyShadowLab.tsx",
+      "accessCount": 5,
+      "lastAccessed": 1772126741158,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 5,
+      "lastAccessed": 1772127508814,
+      "type": "directory"
+    },
+    {
+      "path": "vite.config.ts",
+      "accessCount": 4,
+      "lastAccessed": 1772127751558,
+      "type": "file"
+    },
+    {
+      "path": "src\\store\\appStore.ts",
+      "accessCount": 3,
+      "lastAccessed": 1772127594302,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 2,
+      "lastAccessed": 1772124993132,
+      "type": "file"
+    },
+    {
+      "path": "src\\main.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1772125004969,
+      "type": "file"
+    },
+    {
+      "path": "src\\modules\\grade4-moon-solar\\Grade4MoonSolar.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1772125007830,
+      "type": "file"
+    },
+    {
+      "path": "src\\modules\\grade6-rotation\\Grade6Rotation.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1772125010450,
+      "type": "file"
+    },
+    {
+      "path": "src\\modules\\grade6-season\\Grade6Season.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1772125013430,
+      "type": "file"
+    },
+    {
+      "path": "src\\modules\\grade4-moon-solar\\MoonPhase.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1772125023448,
+      "type": "file"
+    },
+    {
+      "path": "QA_TEST_REPORT.md",
+      "accessCount": 2,
+      "lastAccessed": 1772125503188,
+      "type": "file"
+    },
+    {
+      "path": "index.html",
+      "accessCount": 2,
+      "lastAccessed": 1772127757739,
+      "type": "file"
+    },
+    {
+      "path": "src\\components\\ControlHints.tsx",
+      "accessCount": 2,
+      "lastAccessed": 1772127792960,
+      "type": "file"
+    },
+    {
+      "path": "src\\utils\\texturePaths.ts",
+      "accessCount": 1,
+      "lastAccessed": 1772122509564,
+      "type": "file"
+    },
+    {
+      "path": "tsconfig.json",
+      "accessCount": 1,
+      "lastAccessed": 1772124688097,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1772124692447,
+      "type": "file"
+    },
+    {
+      "path": "src\\components\\TimeControlDial.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1772124748573,
+      "type": "file"
+    },
+    {
+      "path": "src\\data\\planets.ts",
+      "accessCount": 1,
+      "lastAccessed": 1772124750642,
+      "type": "file"
+    },
+    {
+      "path": "src\\utils\\performanceDetector.ts",
+      "accessCount": 1,
+      "lastAccessed": 1772124752128,
+      "type": "file"
+    },
+    {
+      "path": "CLAUDE.md",
+      "accessCount": 1,
+      "lastAccessed": 1772124788440,
+      "type": "file"
+    },
+    {
+      "path": "src\\components\\LearningObjectives.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1772125026168,
+      "type": "file"
+    },
+    {
+      "path": "src\\components\\OnboardingTutorial.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1772125029488,
+      "type": "file"
+    },
+    {
+      "path": "src\\modules\\grade4-moon-solar\\Eclipse.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1772125044410,
+      "type": "file"
+    },
+    {
+      "path": "src\\components\\LearningQuiz.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1772125047535,
+      "type": "file"
+    },
+    {
+      "path": "FRONTEND_REVIEW_REPORT.md",
+      "accessCount": 1,
+      "lastAccessed": 1772127656689,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

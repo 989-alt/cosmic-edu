@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(curl:*)",
+      "Bash(command -v:*)"
+    ]
+  },
+  "outputStyle": "default"
+}
