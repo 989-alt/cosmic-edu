@@ -93,7 +93,7 @@ export default function MoonPhase2D({ illumination, lunarDay, size = 80, eclipse
             ctx.ellipse(cx, cy, Math.abs(r * (1 - 2 * phase)), r, 0, Math.PI / 2, -Math.PI / 2, phase > 0.5);
         } else {
             ctx.arc(cx, cy, r, Math.PI / 2, -Math.PI / 2, false);
-            ctx.ellipse(cx, cy, Math.abs(r * (1 - 2 * phase)), r, 0, -Math.PI / 2, Math.PI / 2, phase > 0.5);
+            ctx.ellipse(cx, cy, Math.abs(r * (1 - 2 * phase)), r, 0, -Math.PI / 2, Math.PI / 2, phase < 0.5);
         }
         ctx.closePath();
 
