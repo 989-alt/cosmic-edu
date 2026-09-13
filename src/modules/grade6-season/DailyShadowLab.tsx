@@ -12,6 +12,7 @@ import {
     sunAltitude,
     sunTimes,
 } from '../../utils/solar';
+import { SvgPill } from '../../components/SvgPill';
 import { SimLayout, SimStage, SimHud, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
 /**
@@ -19,10 +20,10 @@ import { SimLayout, SimStage, SimHud, SimDock, SimInspector, StatRow } from '../
  * 계산은 전부 solar.ts. 이 파일은 값을 좌표로 옮겨 그리기만 한다.
  */
 
-const HORIZON_Y = 440;
+const HORIZON_Y = 468;
 const CX = 500;
 const ARC_RX = 420;
-const ARC_RY = 400;
+const ARC_RY = 330;
 const STICK_PX = 120; // 막대 1 m = 120 px. 그림자도 같은 환산.
 const SHADOW_MAX_PX = 460; // 지평선 폭 클램프
 const ALT_ARC_R = 110;
@@ -272,85 +273,111 @@ export default function DailyShadowLab() {
                 <svg viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%' }}>
                     <defs>
                         <linearGradient id="dsl-sky" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={hex(sky, 0.5)} />
-                            <stop offset="100%" stopColor={hex(sky)} />
+                            <stop offset="0%" stopColor={hex(sky, 0.45)} />
+                            <stop offset="70%" stopColor={hex(sky, 0.85)} />
+                            <stop offset="100%" stopColor={hex(sky, 1.15)} />
+                        </linearGradient>
+                        <linearGradient id="dsl-ground" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#334155" />
+                            <stop offset="100%" stopColor="#0f172a" />
                         </linearGradient>
                         <radialGradient id="dsl-glow">
-                            <stop offset="35%" stopColor="#fde68a" stopOpacity="0.55" />
+                            <stop offset="0%" stopColor="#fff7d6" stopOpacity="0.9" />
+                            <stop offset="30%" stopColor="#fde68a" stopOpacity="0.45" />
                             <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
                         </radialGradient>
+                        <radialGradient id="dsl-sun" cx="0.4" cy="0.4" r="0.7">
+                            <stop offset="0%" stopColor="#fffbea" />
+                            <stop offset="100%" stopColor="#fbbf24" />
+                        </radialGradient>
+                        <radialGradient id="dsl-horizon" cx="0.5" cy="1" r="0.6">
+                            <stop offset="0%" stopColor="#fdba74" stopOpacity={alt < 15 && alt > -8 ? 0.45 : 0} />
+                            <stop offset="100%" stopColor="#fdba74" stopOpacity="0" />
+                        </radialGradient>
+                        <linearGradient id="dsl-shadow" x1={shadowDir > 0 ? 0 : 1} y1="0" x2={shadowDir > 0 ? 1 : 0} y2="0">
+                            <stop offset="0%" stopColor="#020617" stopOpacity="0.75" />
+                            <stop offset="100%" stopColor="#020617" stopOpacity="0.05" />
+                        </linearGradient>
+                        <linearGradient id="dsl-stick" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stopColor="#f8fafc" />
+                            <stop offset="100%" stopColor="#94a3b8" />
+                        </linearGradient>
+                        <clipPath id="dsl-skyclip"><rect x="0" y="0" width="1000" height={HORIZON_Y} /></clipPath>
                     </defs>
 
+                    {/* 하늘·땅 */}
                     <rect x="0" y="0" width="1000" height={HORIZON_Y} fill="url(#dsl-sky)" />
-                    <rect x="0" y={HORIZON_Y} width="1000" height={560 - HORIZON_Y} fill="#453a2c" />
+                    <rect x="0" y={HORIZON_Y - 140} width="1000" height="140" fill="url(#dsl-horizon)" />
+                    {night && [80, 210, 330, 470, 610, 760, 900, 150, 540, 840].map((sx, i) => (
+                        <circle key={i} cx={sx} cy={40 + ((i * 97) % 300)} r={i % 3 === 0 ? 1.8 : 1.1} fill="#e2e8f0" opacity={0.55} />
+                    ))}
+                    <rect x="0" y={HORIZON_Y} width="1000" height={560 - HORIZON_Y} fill="url(#dsl-ground)" />
+                    <line x1="0" y1={HORIZON_Y} x2="1000" y2={HORIZON_Y} stroke="#cbd5e1" strokeWidth="1.5" opacity="0.7" />
 
                     {/* 하지·동지 고스트 호 */}
-                    <path d={GHOST_SUMMER} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 8" opacity="0.5" />
-                    <path d={GHOST_WINTER} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 8" opacity="0.5" />
-                    <text x={GHOST_SUMMER_LABEL.x + 10} y={GHOST_SUMMER_LABEL.y - 10} fontSize="15" fill="#cbd5e1">하지(6월)</text>
-                    <text x={GHOST_WINTER_LABEL.x + 10} y={GHOST_WINTER_LABEL.y - 10} fontSize="15" fill="#cbd5e1">동지(12월)</text>
-
-                    {/* 현재 달의 태양 궤적 */}
-                    <path d={currentArc} fill="none" stroke="#fbbf24" strokeWidth="3" opacity="0.9" />
+                    <g clipPath="url(#dsl-skyclip)">
+                        <path d={GHOST_SUMMER} fill="none" stroke="#ef4444" strokeWidth="1.5" strokeDasharray="5 7" opacity="0.5" />
+                        <path d={GHOST_WINTER} fill="none" stroke="#60a5fa" strokeWidth="1.5" strokeDasharray="5 7" opacity="0.5" />
+                        {/* 현재 달의 태양 궤적 (글로우 + 본선) */}
+                        <path d={currentArc} fill="none" stroke="#fbbf24" strokeWidth="9" opacity="0.16" strokeLinecap="round" />
+                        <path d={currentArc} fill="none" stroke="#fbbf24" strokeWidth="2.5" opacity="0.95" strokeLinecap="round" />
+                    </g>
+                    <SvgPill x={GHOST_SUMMER_LABEL.x + 14} y={GHOST_SUMMER_LABEL.y - 16} text="하지 6월" tone="summer" anchor="start" size={13} />
+                    <SvgPill x={GHOST_WINTER_LABEL.x + 14} y={GHOST_WINTER_LABEL.y - 16} text="동지 12월" tone="winter" anchor="start" size={13} />
 
                     {/* 정남 남중 표시 */}
-                    <line x1={CX} y1={HORIZON_Y} x2={CX} y2={meridian.y} stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 8" opacity="0.55" />
+                    <line x1={CX} y1={HORIZON_Y} x2={CX} y2={meridian.y} stroke="#fde68a" strokeWidth="1.2" strokeDasharray="3 7" opacity="0.5" />
 
-                    {/* 지평선 */}
-                    <line x1="0" y1={HORIZON_Y} x2="1000" y2={HORIZON_Y} stroke="#e2e8f0" strokeWidth="3" />
-
-                    {/* 그림자 (지평선 위 반투명 검정) */}
+                    {/* 고도각: 부채꼴 + 호 + 시선 */}
                     {!night && (
                         <>
-                            <line x1={CX} y1={HORIZON_Y + 6} x2={shadowEnd} y2={HORIZON_Y + 6}
-                                stroke="#000000" strokeOpacity="0.55" strokeWidth="14" />
+                            <path d={`M${CX} ${HORIZON_Y} L${polar(ALT_ARC_R, arcStart)} A${ALT_ARC_R} ${ALT_ARC_R} 0 0 ${arcSweep} ${polar(ALT_ARC_R, sight)} Z`}
+                                fill="#fbbf24" opacity="0.12" />
+                            <path d={`M${polar(ALT_ARC_R, arcStart)} A${ALT_ARC_R} ${ALT_ARC_R} 0 0 ${arcSweep} ${polar(ALT_ARC_R, sight)}`}
+                                fill="none" stroke="#fbbf24" strokeWidth="2" />
+                            <line x1={CX} y1={HORIZON_Y} x2={sun.x} y2={sun.y} stroke="#fde68a" strokeWidth="1.2" strokeDasharray="3 6" opacity="0.6" />
+                            <SvgPill x={CX + (ALT_ARC_R + 52) * Math.cos(arcMid)} y={HORIZON_Y - (ALT_ARC_R + 52) * Math.sin(arcMid)}
+                                text={`${isNoon ? '남중 고도' : '고도'} ${alt.toFixed(0)}°`} tone="sun" size={15} />
+                        </>
+                    )}
+
+                    {/* 그림자: 끝으로 갈수록 옅어지는 띠 */}
+                    {!night && (
+                        <>
+                            <polygon points={`${CX},${HORIZON_Y + 1} ${shadowEnd},${HORIZON_Y + 1} ${shadowEnd},${HORIZON_Y + 9} ${CX},${HORIZON_Y + 13}`}
+                                fill="url(#dsl-shadow)" />
                             {shadowClamped && (
-                                <text x={shadowEnd + shadowDir * 16} y={HORIZON_Y + 12} fontSize="22" fill="#e2e8f0"
+                                <text x={shadowEnd + shadowDir * 14} y={HORIZON_Y + 12} fontSize="20" fill="#cbd5e1"
                                     textAnchor={shadowDir > 0 ? 'start' : 'end'}>…</text>
                             )}
-                            <text x={(CX + shadowEnd) / 2} y={HORIZON_Y + 34} fontSize="15" fill="#c7d2fe" textAnchor="middle">
-                                그림자 {shadowM.toFixed(2)} m
-                            </text>
+                            <SvgPill x={(CX + shadowEnd) / 2} y={HORIZON_Y + 34} text={`그림자 ${shadowM.toFixed(2)} m`} size={13} />
                         </>
                     )}
 
                     {/* 1 m 막대 */}
-                    <rect x={CX - 5} y={HORIZON_Y - STICK_PX} width="10" height={STICK_PX} fill="#e2e8f0" rx="3" />
-                    <text x={CX - 14} y={HORIZON_Y - STICK_PX + 16} fontSize="15" fill="#e2e8f0" textAnchor="end">1 m 막대</text>
-
-                    {/* 고도각 호 + 시선 */}
-                    {!night && (
-                        <>
-                            <line x1={CX} y1={HORIZON_Y} x2={sun.x} y2={sun.y} stroke="#fde68a" strokeWidth="1.5" strokeDasharray="4 6" opacity="0.7" />
-                            <path d={`M${polar(ALT_ARC_R, arcStart)} A${ALT_ARC_R} ${ALT_ARC_R} 0 0 ${arcSweep} ${polar(ALT_ARC_R, sight)}`}
-                                fill="none" stroke="#fbbf24" strokeWidth="2.5" />
-                            <text x={CX + (ALT_ARC_R + 38) * Math.cos(arcMid)} y={HORIZON_Y - (ALT_ARC_R + 38) * Math.sin(arcMid)}
-                                fontSize="18" fill="#fbbf24" textAnchor="middle" dominantBaseline="middle">
-                                {isNoon ? '남중 고도' : '고도'} {alt.toFixed(0)}°
-                            </text>
-                        </>
-                    )}
+                    <ellipse cx={CX} cy={HORIZON_Y + 1} rx="9" ry="3" fill="#0f172a" opacity="0.6" />
+                    <rect x={CX - 4} y={HORIZON_Y - STICK_PX} width="8" height={STICK_PX} fill="url(#dsl-stick)" rx="4" />
+                    <SvgPill x={CX - 16} y={HORIZON_Y - STICK_PX + 12} text="막대 1 m" anchor="end" size={13} />
 
                     {/* 태양 */}
                     {!night && (
                         <>
-                            <circle cx={sun.x} cy={sun.y} r="58" fill="url(#dsl-glow)" />
-                            <circle cx={sun.x} cy={sun.y} r="22" fill="#fde68a" stroke="#fbbf24" strokeWidth="3" />
-                            <text x={sun.x} y={sun.y - 34} fontSize="18" fill="#fde68a" textAnchor="middle">{formatHour(hour)}</text>
+                            <circle cx={sun.x} cy={sun.y} r="78" fill="url(#dsl-glow)" />
+                            <circle cx={sun.x} cy={sun.y} r="21" fill="url(#dsl-sun)" />
+                            <SvgPill x={sun.x} y={sun.y - 42} text={formatHour(hour)} tone="sun" size={15} />
                         </>
                     )}
 
                     {/* 방위 */}
-                    <text x="24" y="474" fontSize="20" fill="#4ade80">동(E)</text>
-                    <text x="976" y="474" fontSize="20" fill="#f59e0b" textAnchor="end">서(W)</text>
-                    <text x={CX} y="524" fontSize="18" fill="#cbd5e1" textAnchor="middle">남(S) — 관측자가 보는 방향</text>
+                    <SvgPill x={22} y={HORIZON_Y + 28} text="동 E" anchor="start" />
+                    <SvgPill x={978} y={HORIZON_Y + 28} text="서 W" anchor="end" />
+                    <SvgPill x={CX} y={530} text="남 S · 관측자가 보는 방향" />
                 </svg>
 
                 <SimHud items={[
                     { label: '태양 고도', value: `${alt.toFixed(1)}°`, color: 'var(--accent-sun)' },
                     { label: '그림자 길이', value: night ? '—' : `${shadowM.toFixed(2)} m`, color: 'var(--text-accent)' },
                     { label: '시각', value: formatHour(hour) },
-                    { label: '계절', value: season.name, color: season.color },
                 ]} />
             </SimStage>
 

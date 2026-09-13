@@ -5,6 +5,7 @@ import {
     KOREA_LAT, declination, meridianAltitude, energyDensity, irradiatedArea,
 } from '../../utils/solar';
 import { useSeasonStore } from '../../store/seasonStore';
+import { SvgPill } from '../../components/SvgPill';
 import { SimLayout, SimStage, SimHud, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
 /**
@@ -67,17 +68,23 @@ function MiniSpread({ x, y, altitude, caption }: { x: number; y: number; altitud
 
     return (
         <g transform={`translate(${x}, ${y})`}>
-            <rect x={0} y={0} width={180} height={120} rx={8} fill="#0f172a" stroke="#334155" />
+            <rect x={0} y={0} width={180} height={120} rx={10} fill="rgba(13,18,32,0.78)" stroke="rgba(148,163,184,0.25)" />
             <g clipPath="url(#mini-clip)">
+                <rect x={0} y={gy} width={180} height={120 - gy} fill="#1e293b" opacity={0.6} />
+                {(() => {
+                    const a = rayStart(90 + (w / 2) / sin, gy, rad, 2, 2);
+                    const b = rayStart(90 - (w / 2) / sin, gy, rad, 2, 2);
+                    return <polygon points={`${a.x},${a.y} ${b.x},${b.y} ${90 - (w / 2) / sin},${gy} ${90 + (w / 2) / sin},${gy}`} fill="#fde68a" opacity={0.14} />;
+                })()}
                 {[-w / 2, 0, w / 2].map((s, i) => {
                     const gx = 90 - s / sin;
                     const st = rayStart(gx, gy, rad, 2, 2);
-                    return <line key={i} x1={st.x} y1={st.y} x2={gx} y2={gy} stroke="#fbbf24" strokeWidth={2} opacity={0.8} />;
+                    return <line key={i} x1={st.x} y1={st.y} x2={gx} y2={gy} stroke="#fde68a" strokeWidth={1.4} opacity={0.85} />;
                 })}
-                <line x1={4} y1={gy} x2={176} y2={gy} stroke="#78716c" strokeWidth={2} />
-                <rect x={90 - band / 2} y={gy - 3} width={band} height={7} rx={3} fill={color} />
+                <line x1={0} y1={gy} x2={180} y2={gy} stroke="#cbd5e1" strokeWidth={1} opacity={0.6} />
+                <rect x={90 - band / 2} y={gy - 3} width={band} height={6} rx={3} fill={color} />
             </g>
-            <text x={90} y={110} fontSize={14} fill="#e2e8f0" textAnchor="middle">{caption}</text>
+            <text x={90} y={108} fontSize={13} fontWeight={600} fill="#cbd5e1" textAnchor="middle">{caption}</text>
         </g>
     );
 }
@@ -131,54 +138,90 @@ export default function EnergyDensity() {
             <SimStage>
                 <svg viewBox={`0 0 ${VIEW_W} 560`} preserveAspectRatio="xMidYMid meet">
                     <defs>
-                        <clipPath id="mini-clip"><rect x={0} y={0} width={180} height={120} rx={8} /></clipPath>
+                        <clipPath id="mini-clip"><rect x={0} y={0} width={180} height={120} rx={10} /></clipPath>
+                        <linearGradient id="ed-sky" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#070a14" />
+                            <stop offset="100%" stopColor="#141b2e" />
+                        </linearGradient>
+                        <linearGradient id="ed-ground" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#334155" />
+                            <stop offset="100%" stopColor="#0f172a" />
+                        </linearGradient>
+                        <radialGradient id="ed-glow">
+                            <stop offset="0%" stopColor="#fff7d6" stopOpacity="0.9" />
+                            <stop offset="30%" stopColor="#fde68a" stopOpacity="0.45" />
+                            <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+                        </radialGradient>
+                        <radialGradient id="ed-sun" cx="0.4" cy="0.4" r="0.7">
+                            <stop offset="0%" stopColor="#fffbea" />
+                            <stop offset="100%" stopColor="#fbbf24" />
+                        </radialGradient>
+                        <linearGradient id="ed-beam" gradientUnits="userSpaceOnUse"
+                            x1={sunX} y1={sunY} x2={CENTER_X} y2={GROUND_Y}>
+                            <stop offset="0%" stopColor="#fde68a" stopOpacity="0.32" />
+                            <stop offset="100%" stopColor="#fbbf24" stopOpacity="0.06" />
+                        </linearGradient>
+                        <filter id="ed-blur" x="-20%" y="-200%" width="140%" height="500%">
+                            <feGaussianBlur stdDeviation="6" />
+                        </filter>
                     </defs>
 
                     {/* 하늘 / 땅 */}
-                    <rect x={0} y={0} width={VIEW_W} height={GROUND_Y} fill="#0a0e1a" />
-                    <rect x={0} y={GROUND_Y} width={VIEW_W} height={560 - GROUND_Y} fill="#4a3524" />
-                    <line x1={0} y1={GROUND_Y} x2={VIEW_W} y2={GROUND_Y} stroke="#a8a29e" strokeWidth={3} />
+                    <rect x={0} y={0} width={VIEW_W} height={GROUND_Y} fill="url(#ed-sky)" />
+                    <rect x={0} y={GROUND_Y} width={VIEW_W} height={560 - GROUND_Y} fill="url(#ed-ground)" />
+                    <line x1={0} y1={GROUND_Y} x2={VIEW_W} y2={GROUND_Y} stroke="#cbd5e1" strokeWidth={1.5} opacity={0.7} />
 
-                    {/* 태양 */}
-                    <circle cx={sunX} cy={sunY} r={SUN_R} fill="#fbbf24" />
-                    <circle cx={sunX} cy={sunY} r={SUN_R + 10} fill="#fbbf24" opacity={0.2} />
+                    {/* 빛 다발(면) */}
+                    {(() => {
+                        const a = rayStart(CENTER_X + (BEAM_W / 2) / sin, GROUND_Y, rad, -60, sunY - 36);
+                        const b = rayStart(CENTER_X - (BEAM_W / 2) / sin, GROUND_Y, rad, -60, sunY - 36);
+                        return <polygon points={`${a.x},${a.y} ${b.x},${b.y} ${CENTER_X - (BEAM_W / 2) / sin},${GROUND_Y} ${CENTER_X + (BEAM_W / 2) / sin},${GROUND_Y}`} fill="url(#ed-beam)" />;
+                    })()}
 
-                    {/* 평행 광선 다발 8줄 (폭 고정 BEAM_W) */}
+                    {/* 평행 광선 8줄 */}
                     {Array.from({ length: RAY_COUNT }, (_, i) => {
                         const s = -BEAM_W / 2 + (i * BEAM_W) / (RAY_COUNT - 1);
                         const gx = CENTER_X - s / sin;
                         const st = rayStart(gx, GROUND_Y, rad, -60, sunY - 36);
                         return (
                             <g key={i}>
-                                <line x1={st.x} y1={st.y} x2={gx} y2={GROUND_Y} stroke="#fbbf24" strokeWidth={3} opacity={0.85} />
-                                <polygon points={arrowHead(gx, GROUND_Y, rad, 16)} fill="#fbbf24" />
+                                <line x1={st.x} y1={st.y} x2={gx} y2={GROUND_Y} stroke="#fde68a" strokeWidth={1.6} opacity={0.8} />
+                                <polygon points={arrowHead(gx, GROUND_Y, rad, 12)} fill="#fde68a" opacity={0.9} />
                             </g>
                         );
                     })}
 
-                    {/* 바닥 조사 구간 */}
-                    <rect x={bandL} y={GROUND_Y - 7} width={band} height={14} rx={7} fill={color} />
-                    <line x1={bandL} y1={GROUND_Y - 16} x2={bandL} y2={475} stroke="#fde68a" strokeWidth={2} />
-                    <line x1={bandR} y1={GROUND_Y - 16} x2={bandR} y2={475} stroke="#fde68a" strokeWidth={2} />
-                    <line x1={bandL} y1={470} x2={bandR} y2={470} stroke="#fde68a" strokeWidth={2} />
+                    {/* 태양 */}
+                    <circle cx={sunX} cy={sunY} r={SUN_R * 2.8} fill="url(#ed-glow)" />
+                    <circle cx={sunX} cy={sunY} r={SUN_R} fill="url(#ed-sun)" />
+
+                    {/* 바닥 조사 구간: 발광 + 띠 */}
+                    <rect x={bandL} y={GROUND_Y - 6} width={band} height={12} rx={6} fill={color} opacity={0.7} filter="url(#ed-blur)" />
+                    <rect x={bandL} y={GROUND_Y - 5} width={band} height={10} rx={5} fill={color} />
+
+                    {/* 치수선 */}
+                    <line x1={bandL} y1={GROUND_Y + 14} x2={bandL} y2={GROUND_Y + 40} stroke="#e2e8f0" strokeWidth={1.2} opacity={0.7} />
+                    <line x1={bandR} y1={GROUND_Y + 14} x2={bandR} y2={GROUND_Y + 40} stroke="#e2e8f0" strokeWidth={1.2} opacity={0.7} />
+                    <line x1={bandL} y1={GROUND_Y + 34} x2={bandR} y2={GROUND_Y + 34} stroke="#e2e8f0" strokeWidth={1.2} opacity={0.7} />
                     {clamped && (
                         <>
-                            <text x={bandL - 18} y={476} fontSize={20} fill="#fde68a" textAnchor="middle">…</text>
-                            <text x={bandR + 18} y={476} fontSize={20} fill="#fde68a" textAnchor="middle">…</text>
+                            <text x={bandL - 18} y={GROUND_Y + 40} fontSize={20} fill="#e2e8f0" textAnchor="middle">…</text>
+                            <text x={bandR + 18} y={GROUND_Y + 40} fontSize={20} fill="#e2e8f0" textAnchor="middle">…</text>
                         </>
                     )}
-                    <text x={CENTER_X} y={502} fontSize={20} fill="#fde68a" textAnchor="middle">{cm} cm</text>
-                    <text x={CENTER_X} y={528} fontSize={14} fill="#d6d3d1" textAnchor="middle">
-                        빛다발 폭 100 cm 가 바닥에서 {cm} cm 로 퍼진다
-                    </text>
+                    <SvgPill x={CENTER_X} y={GROUND_Y + 62} text={`${cm} cm`} tone="sun" size={17} />
+                    <SvgPill x={CENTER_X} y={GROUND_Y + 96} text={`빛다발 폭 100 cm 가 바닥에서 ${cm} cm 로 퍼집니다`} size={13} />
 
-                    {/* 고도각 호 */}
-                    <path d={arcPath} fill="none" stroke="#67e8f9" strokeWidth={2} />
-                    <text x={labX} y={labY} fontSize={18} fill="#67e8f9" textAnchor="middle">고도 {disp}°</text>
+                    {/* 고도각: 부채꼴 + 호 */}
+                    <path d={`M ${CENTER_X} ${GROUND_Y} L ${CENTER_X - ARC_R} ${GROUND_Y} A ${ARC_R} ${ARC_R} 0 0 1 ${CENTER_X - ARC_R * cos} ${GROUND_Y - ARC_R * sin} Z`}
+                        fill="#fbbf24" opacity={0.12} />
+                    <path d={arcPath} fill="none" stroke="#fbbf24" strokeWidth={2} />
+                    <SvgPill x={labX} y={labY} text={`고도 ${disp}°`} tone="sun" size={15} />
 
                     {/* 우상단 비교 미니 도해 */}
-                    <MiniSpread x={612} y={16} altitude={76.4} caption="여름 76°" />
-                    <MiniSpread x={804} y={16} altitude={30} caption="겨울 30°" />
+                    <text x={612} y={12} fontSize={12} fill="#7f8ca6" fontWeight={600}>비교</text>
+                    <MiniSpread x={612} y={20} altitude={76.4} caption="여름 76°" />
+                    <MiniSpread x={804} y={20} altitude={30} caption="겨울 30°" />
                 </svg>
 
                 <SimHud items={[
