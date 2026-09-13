@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BookOpen, Check, Lightbulb, ArrowRight } from 'lucide-react';
 
 interface ObjectiveData {
     title: string;
@@ -75,25 +76,25 @@ export default function LearningObjectives({ moduleKey }: LearningObjectivesProp
                     <span className="objectives-grade">{data.grade}</span>
                     <span className="objectives-unit">{data.unit}</span>
                 </div>
-                <h2 className="objectives-title">📚 {data.title}</h2>
+                <h2 className="objectives-title"><span className="icon-tile" style={{ width: 36, height: 36 }}><BookOpen size={20} /></span>{data.title}</h2>
                 <div className="objectives-subtitle">이번에 배울 내용</div>
 
                 <ul className="objectives-list">
                     {data.objectives.map((obj, idx) => (
                         <li key={idx} className="objectives-item">
-                            <span className="objectives-check">✓</span>
+                            <span className="objectives-check" aria-hidden="true"><Check size={16} /></span>
                             {obj}
                         </li>
                     ))}
                 </ul>
 
                 <div className="objectives-tip">
-                    <span className="objectives-tip-icon">💡</span>
+                    <span className="objectives-tip-icon" aria-hidden="true"><Lightbulb size={18} /></span>
                     <span>{data.tips}</span>
                 </div>
 
                 <button className="objectives-btn" onClick={handleClose}>
-                    학습 시작하기 →
+                    학습 시작하기 <ArrowRight size={16} style={{ verticalAlign: '-3px' }} />
                 </button>
             </div>
         </div>

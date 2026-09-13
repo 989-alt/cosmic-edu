@@ -1,45 +1,56 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Orbitron:wght@400;700;900&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 
 :root {
-  /* Colors — Deep Space Theme */
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #111827;
-  --bg-card: rgba(17, 24, 39, 0.85);
-  --bg-glass: rgba(15, 23, 42, 0.6);
-  --border-glow: rgba(99, 102, 241, 0.3);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-
+  /* === 디자인 토큰 (다크 무대 + 정돈된 크롬) === */
+  /* 면 */
+  --bg-primary: #070a14;          /* 페이지·무대 */
+  --bg-secondary: #0d1220;        /* 패널(Inspector·Dock·헤더) */
+  --bg-card: #141b2e;             /* 카드·모달 */
+  --bg-glass: #0d1220;            /* 구 이름 호환. 이제 불투명 */
+  --bg-raised: #1a2338;           /* 호버·선택 면 */
+  /* 선 */
+  --border-subtle: rgba(148, 163, 184, 0.14);
+  --border-strong: rgba(148, 163, 184, 0.30);
+  --border-glow: rgba(99, 102, 241, 0.45);
+  /* 글자 */
   --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-accent: #818cf8;
-  --text-muted: #7c8aa3; /* Improved contrast ratio */
-
-  --accent-primary: #6366f1;
+  --text-secondary: #b7c2d6;
+  --text-muted: #7f8ca6;
+  --text-accent: #a5b4fc;
+  /* 의미 색 — 앱 전체에서 이 뜻으로만 쓴다 */
+  --accent-primary: #6366f1;      /* 브랜드·선택·포커스 */
+  --accent-primary-soft: rgba(99, 102, 241, 0.18);
   --accent-secondary: #8b5cf6;
-  --accent-sun: #fbbf24;
-  --accent-earth: #3b82f6;
-  --accent-moon: #d1d5db;
+  --accent-sun: #f59e0b;          /* 태양·수치 강조 */
+  --accent-earth: #3b82f6;        /* 지구 */
+  --accent-moon: #cbd5e1;         /* 달 */
   --accent-danger: #ef4444;
-  --accent-success: #10b981;
+  --accent-success: #22c55e;
+  --season-spring: #f472b6;
+  --season-summer: #ef4444;
+  --season-autumn: #f59e0b;
+  --season-winter: #60a5fa;
 
-  --gradient-cosmic: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-cosmic: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   --gradient-sun: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
   --gradient-earth: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
 
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
-  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 0 1px var(--border-glow);
+  --shadow-card: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.55);
 
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 
-  --font-sans: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'Orbitron', monospace;
+  /* 서체: 본문·수치 모두 Pretendard. 수치는 tabular-nums 로 자릿수 정렬 */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+  --font-mono: var(--font-sans);
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -57,7 +68,31 @@ body,
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+}
+
+button, input, select {
+  font-family: inherit;
+}
+button {
+  cursor: pointer;
+}
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+svg.lucide {
+  flex-shrink: 0;
+  vertical-align: -0.15em;
+}
+.icon-tile {
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary-soft);
+  color: var(--text-accent);
 }
 
 /* === App Shell === */
@@ -89,18 +124,20 @@ body,
 }
 
 .app-logo-icon {
-  font-size: 1.5rem;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--gradient-cosmic);
+  color: white;
 }
 
 .app-logo-text {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: 2px;
-  background: var(--gradient-cosmic);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  color: var(--text-primary);
 }
 
 .app-header-controls {
@@ -128,14 +165,11 @@ body,
 }
 
 .module-home-title {
-  font-family: var(--font-mono);
   font-size: 2.2rem;
-  font-weight: 900;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-align: center;
-  background: var(--gradient-cosmic);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-primary);
 }
 
 .module-home-subtitle {
@@ -186,14 +220,19 @@ body,
 }
 
 .module-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-glow), var(--shadow-card);
+  border-color: var(--border-strong);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-card);
 }
 
 .module-card-icon {
-  font-size: 3rem;
-  margin-bottom: 16px;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 18px;
 }
+.module-card-icon.sun { background: rgba(245, 158, 11, 0.16); color: var(--accent-sun); }
+.module-card-icon.earth { background: rgba(59, 130, 246, 0.16); color: var(--accent-earth); }
+.module-card-icon.moon { background: rgba(203, 213, 225, 0.14); color: var(--accent-moon); }
 
 .module-card-grade {
   font-size: 0.75rem;
@@ -247,15 +286,19 @@ body,
 }
 
 .sub-module-btn {
-  padding: 8px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 16px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sub-module-btn.active {
@@ -265,8 +308,8 @@ body,
 }
 
 .sub-module-btn:hover:not(.active) {
-  background: rgba(99, 102, 241, 0.1);
-  border-color: var(--accent-primary);
+  background: var(--accent-primary-soft);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
@@ -291,8 +334,8 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--border-subtle);
   border-radius: 50%;
   background: transparent;
@@ -303,8 +346,8 @@ body,
 }
 
 .control-btn:hover {
-  background: rgba(99, 102, 241, 0.2);
-  border-color: var(--accent-primary);
+  background: var(--accent-primary-soft);
+  border-color: var(--border-strong);
 }
 
 .control-btn.active {
@@ -313,8 +356,8 @@ body,
 }
 
 .speed-label {
-  font-family: var(--font-mono);
   font-size: 0.8rem;
+  font-weight: 700;
   color: var(--accent-sun);
   min-width: 36px;
   text-align: center;
@@ -466,7 +509,8 @@ body,
 .info-panel-stat {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
+  align-items: baseline;
+  padding: 9px 0;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -476,9 +520,9 @@ body,
 }
 
 .info-panel-stat-value {
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--accent-sun);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* === Scale Mode Toggle === */
@@ -619,10 +663,11 @@ body,
 
 /* === Back button === */
 .back-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  min-height: 40px;
+  padding: 6px 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -953,9 +998,10 @@ body,
 }
 
 .onboarding-icon {
-  font-size: 3.5rem;
-  margin-bottom: 20px;
-  animation: bounce 2s infinite;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+  border-radius: 20px;
 }
 
 @keyframes bounce {
@@ -1010,6 +1056,9 @@ body,
 }
 
 .onboarding-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 12px 24px;
   border-radius: var(--radius-md);
   font-size: 0.9rem;
@@ -1025,8 +1074,8 @@ body,
 }
 
 .onboarding-btn.primary:hover {
-  transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+  filter: brightness(1.08);
 }
 
 .onboarding-btn.secondary {
@@ -1100,6 +1149,9 @@ body,
 }
 
 .objectives-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -1133,8 +1185,8 @@ body,
 
 .objectives-check {
   color: var(--accent-success);
-  font-weight: bold;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .objectives-tip {
@@ -1153,7 +1205,9 @@ body,
 
 .objectives-tip-icon {
   flex-shrink: 0;
-  font-size: 1.1rem;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
 }
 
 .objectives-btn {
@@ -1170,8 +1224,8 @@ body,
 }
 
 .objectives-btn:hover {
-  transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+  filter: brightness(1.08);
 }
 
 /* === Control Hints === */
@@ -1199,10 +1253,9 @@ body,
 }
 
 .control-hints-toggle:hover {
-  background: var(--bg-card);
-  border-color: var(--accent-primary);
+  background: var(--bg-raised);
+  border-color: var(--border-strong);
   color: var(--text-primary);
-  transform: scale(1.1);
 }
 
 .control-hints.expanded .control-hints-toggle {
@@ -1241,9 +1294,10 @@ body,
 }
 
 .control-hint-icon {
-  font-size: 1rem;
+  display: grid;
+  place-items: center;
   width: 24px;
-  text-align: center;
+  color: var(--text-accent);
 }
 
 .control-hint-action {
@@ -1268,9 +1322,13 @@ body,
 /* === Learning Quiz === */
 .quiz-trigger-btn {
   position: fixed;
-  top: 68px;
+  top: 66px;
   right: 16px;
-  padding: 10px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 16px;
   background: var(--gradient-cosmic);
   color: white;
   border: none;
@@ -1284,8 +1342,8 @@ body,
 }
 
 .quiz-trigger-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+  filter: brightness(1.08);
 }
 
 .quiz-overlay {
@@ -1436,6 +1494,9 @@ body,
 }
 
 .quiz-result-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 1rem;
   font-weight: 700;
   margin-bottom: 8px;
@@ -1472,8 +1533,12 @@ body,
 }
 
 .quiz-complete-icon {
-  font-size: 4rem;
-  margin-bottom: 16px;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  border-radius: 20px;
+  background: rgba(245, 158, 11, 0.16);
+  color: var(--accent-sun);
 }
 
 .quiz-complete-title {

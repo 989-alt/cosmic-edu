@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { Loader } from '@react-three/drei';
+import { Telescope, Info, Moon, Globe, Sun } from 'lucide-react';
 import { useAppStore } from './store/appStore';
 import AboutModal from './components/AboutModal';
 import OnboardingTutorial from './components/OnboardingTutorial';
@@ -28,7 +29,7 @@ function Home() {
       <p className="module-home-subtitle">초등 과학 천체 시뮬레이터 · 우주를 직접 조작하며 배우세요</p>
       <nav className="module-cards" aria-label="학습 모듈 선택">
         <Link to="/grade4-moon-solar" className="module-card" aria-labelledby="card1-title card1-grade">
-          <span className="module-card-icon" aria-hidden="true">🌙</span>
+          <span className="module-card-icon icon-tile moon" aria-hidden="true"><Moon size={28} /></span>
           <span id="card1-grade" className="module-card-grade">4학년 2학기</span>
           <h2 id="card1-title" className="module-card-title">밤하늘 관찰</h2>
           <p className="module-card-desc">
@@ -42,7 +43,7 @@ function Home() {
         </Link>
 
         <Link to="/grade6-rotation" className="module-card" aria-labelledby="card2-title card2-grade">
-          <span className="module-card-icon" aria-hidden="true">🌍</span>
+          <span className="module-card-icon icon-tile earth" aria-hidden="true"><Globe size={28} /></span>
           <span id="card2-grade" className="module-card-grade">6학년 1학기</span>
           <h2 id="card2-title" className="module-card-title">지구의 운동</h2>
           <p className="module-card-desc">
@@ -55,7 +56,7 @@ function Home() {
         </Link>
 
         <Link to="/grade6-season" className="module-card" aria-labelledby="card3-title card3-grade">
-          <span className="module-card-icon" aria-hidden="true">☀️</span>
+          <span className="module-card-icon icon-tile sun" aria-hidden="true"><Sun size={28} /></span>
           <span id="card3-grade" className="module-card-grade">6학년 2학기</span>
           <h2 id="card3-title" className="module-card-title">계절의 변화</h2>
           <p className="module-card-desc">
@@ -87,7 +88,7 @@ function AppHeader() {
     <>
       <header className="app-header" role="banner">
         <Link to="/" className="app-logo" aria-label="COSMIC-EDU 홈으로 이동">
-          <span className="app-logo-icon" aria-hidden="true">🔭</span>
+          <span className="app-logo-icon" aria-hidden="true"><Telescope size={18} /></span>
           <span className="app-logo-text">COSMIC-EDU</span>
         </Link>
         <nav className="app-header-controls" aria-label="사이트 설정">
@@ -98,7 +99,7 @@ function AppHeader() {
             aria-haspopup="dialog"
             style={{ background: 'transparent', border: '1px solid var(--border-subtle)', marginRight: '8px' }}
           >
-            <span aria-hidden="true">ℹ️</span> 정보
+            <Info size={14} /> 정보
           </button>
           <button
             className="perf-toggle"

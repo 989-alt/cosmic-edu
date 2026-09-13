@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft, Sun, CalendarDays, Flame, Globe } from 'lucide-react';
 import DailyShadowLab from './DailyShadowLab';
 import SeasonalAltitude from './SeasonalAltitude';
 import EnergyDensity from './EnergyDensity';
@@ -17,18 +18,18 @@ export default function Grade6Season() {
             <LearningObjectives moduleKey="grade6-season" />
             <LearningQuiz moduleKey="grade6-season" />
             <div className="sub-module-nav">
-                <Link to="/" className="back-btn">← 홈</Link>
+                <Link to="/" className="back-btn"><ArrowLeft size={16} /> 홈</Link>
                 <button className={`sub-module-btn ${active === 'daily' ? 'active' : ''}`} onClick={() => setActive('daily')}>
-                    ☀️ 하루 태양 고도
+                    <Sun size={16} /> 하루 태양 고도
                 </button>
                 <button className={`sub-module-btn ${active === 'seasonal' ? 'active' : ''}`} onClick={() => setActive('seasonal')}>
-                    📅 계절별 남중 고도
+                    <CalendarDays size={16} /> 계절별 남중 고도
                 </button>
                 <button className={`sub-module-btn ${active === 'energy' ? 'active' : ''}`} onClick={() => setActive('energy')}>
-                    🔥 에너지 밀도
+                    <Flame size={16} /> 에너지 밀도
                 </button>
                 <button className={`sub-module-btn ${active === 'axis' ? 'active' : ''}`} onClick={() => setActive('axis')}>
-                    🌐 자전축 임팩트
+                    <Globe size={16} /> 자전축 임팩트
                 </button>
             </div>
             <div className="canvas-container">

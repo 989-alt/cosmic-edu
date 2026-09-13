@@ -45,15 +45,20 @@
   pointer-events: none;
 }
 .sim-hud-chip {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
+  background: rgba(13, 18, 32, 0.78);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 8px 14px;
   min-width: 84px;
 }
-.sim-hud-label { display: block; font-size: 0.65rem; color: var(--text-muted); }
-.sim-hud-value { display: block; font-size: 1.1rem; font-family: var(--font-mono); color: var(--text-primary); line-height: 1.2; }
+.sim-hud-chip.primary {
+  border-color: var(--border-strong);
+  padding: 10px 16px;
+}
+.sim-hud-label { display: block; font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.02em; }
+.sim-hud-value { display: block; font-size: 1.05rem; font-weight: 600; color: var(--text-primary); line-height: 1.25; }
+.sim-hud-chip.primary .sim-hud-value { font-size: 1.5rem; font-weight: 700; }
 
 .sim-stage-controls {
   position: absolute;
@@ -83,14 +88,15 @@
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--border-subtle);
-  color: var(--text-accent);
-  font-family: var(--font-sans);
+  color: var(--text-primary);
   font-size: 1rem;
   font-weight: 700;
   text-align: left;
   cursor: pointer;
-  min-height: 48px;
+  min-height: 52px;
 }
+.sim-inspector-title { display: inline-flex; align-items: center; gap: 8px; }
+.sim-inspector-title .lucide { color: var(--text-accent); }
 .sim-inspector-chevron { color: var(--text-muted); font-size: 0.9rem; }
 .sim-inspector-tabs {
   display: flex;
@@ -109,16 +115,41 @@
   cursor: pointer;
   min-height: 40px;
 }
+.sim-inspector-tab:hover:not(.active) { background: var(--accent-primary-soft); color: var(--text-primary); }
 .sim-inspector-tab.active { background: var(--accent-primary); color: white; border-color: var(--accent-primary); }
 .sim-inspector-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 14px 18px 18px;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 1.65;
 }
+/* Inspector 안 콘텐츠 블록: 한 줄 핵심 / 수치 / 왜? */
+.insp-key {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-md);
+  background: var(--accent-primary-soft);
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.insp-key .lucide { color: var(--text-accent); margin-top: 2px; }
+.insp-note {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+.insp-list { padding-left: 18px; margin: 8px 0 0; }
+.insp-list li { margin-bottom: 6px; }
 
 /* Dock */
 .sim-dock {
@@ -140,7 +171,10 @@
   gap: 6px;
 }
 .sim-preset {
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
   border: 1px solid var(--border-subtle);
   border-radius: 99px;
   background: transparent;
@@ -150,8 +184,8 @@
   cursor: pointer;
   min-height: 32px;
 }
-.sim-preset.active, .sim-preset:hover { border-color: var(--accent-primary); color: var(--text-primary); }
-.sim-preset.active { background: rgba(99, 102, 241, 0.25); }
+.sim-preset:hover { border-color: var(--border-strong); color: var(--text-primary); background: var(--accent-primary-soft); }
+.sim-preset.active { background: var(--accent-primary); border-color: var(--accent-primary); color: white; }
 .sim-dock-main {
   display: flex;
   align-items: center;
@@ -164,7 +198,7 @@
 .sim-dock-slider .slider-input { width: 100%; height: 12px; border-radius: 6px; }
 .sim-dock-slider .slider-input::-webkit-slider-thumb { width: 24px; height: 24px; }
 .sim-dock-slider .slider-label { text-align: left; }
-.sim-dock-display { font-family: var(--font-mono); font-size: 0.9rem; color: var(--accent-sun); }
+.sim-dock-display { font-size: 1rem; font-weight: 700; color: var(--accent-sun); }
 .sim-dock-ticks { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-muted); }
 
 /* 좌하단 고정 버튼(도움말·퀴즈)이 Dock 왼쪽 여백에 들어가도록 */

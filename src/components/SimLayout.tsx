@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { Play, Pause, ChevronDown, ChevronUp } from 'lucide-react';
 import './SimLayout.css';
 
 /**
@@ -25,8 +26,8 @@ export interface HudItem { label: string; value: string; color?: string }
 export function SimHud({ items }: { items: HudItem[] }) {
     return (
         <div className="sim-hud" aria-live="polite">
-            {items.map((it) => (
-                <div key={it.label} className="sim-hud-chip">
+            {items.map((it, i) => (
+                <div key={it.label} className={`sim-hud-chip ${i === 0 ? 'primary' : ''}`}>
                     <span className="sim-hud-label">{it.label}</span>
                     <span className="sim-hud-value" style={it.color ? { color: it.color } : undefined}>{it.value}</span>
                 </div>
@@ -73,7 +74,7 @@ export function SimDock({ play, speed, slider, presets, children }: {
                 {play && (
                     <button className={`control-btn ${play.playing ? 'active' : ''}`} onClick={play.onToggle}
                         aria-label={play.playing ? '일시정지' : '재생'}>
-                        {play.playing ? '⏸' : '▶'}
+                        {play.playing ? <Pause size={18} /> : <Play size={18} />}
                     </button>
                 )}
                 {speed && (
@@ -115,7 +116,7 @@ export function SimInspector({ title, sections }: { title: ReactNode; sections: 
         <aside className={`sim-inspector ${open ? 'open' : 'closed'}`} aria-label="정보 패널">
             <button className="sim-inspector-head" onClick={() => setOpen(!open)} aria-expanded={open}>
                 <span className="sim-inspector-title">{title}</span>
-                <span className="sim-inspector-chevron" aria-hidden="true">{open ? '▾' : '▴'}</span>
+                <span className="sim-inspector-chevron" aria-hidden="true">{open ? <ChevronDown size={18} /> : <ChevronUp size={18} />}</span>
             </button>
             {open && (
                 <>

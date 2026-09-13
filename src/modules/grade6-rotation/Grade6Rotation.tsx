@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft, RotateCw, Orbit } from 'lucide-react';
 import DayNight from './DayNight';
 import Revolution from './Revolution';
 import LearningObjectives from '../../components/LearningObjectives';
@@ -15,12 +16,12 @@ export default function Grade6Rotation() {
             <LearningObjectives moduleKey="grade6-rotation" />
             <LearningQuiz moduleKey="grade6-rotation" />
             <div className="sub-module-nav">
-                <Link to="/" className="back-btn">← 홈</Link>
+                <Link to="/" className="back-btn"><ArrowLeft size={16} /> 홈</Link>
                 <button className={`sub-module-btn ${active === 'daynight' ? 'active' : ''}`} onClick={() => setActive('daynight')}>
-                    🌓 자전과 일주 운동
+                    <RotateCw size={16} /> 자전과 일주 운동
                 </button>
                 <button className={`sub-module-btn ${active === 'revolution' ? 'active' : ''}`} onClick={() => setActive('revolution')}>
-                    🌏 지구의 공전
+                    <Orbit size={16} /> 지구의 공전
                 </button>
             </div>
             <div className="canvas-container">

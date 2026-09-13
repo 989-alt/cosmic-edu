@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { HelpCircle, X, MousePointer2, ZoomIn, Hand, Smartphone } from 'lucide-react';
 
 const HINTS = [
-    { icon: '🖱️', action: '드래그', description: '화면 회전' },
-    { icon: '🔍', action: '휠 스크롤', description: '확대/축소' },
-    { icon: '✋', action: '우클릭+드래그', description: '화면 이동' },
-    { icon: '📱', action: '두 손가락', description: '터치 확대/이동' },
+    { Icon: MousePointer2, action: '드래그', description: '화면 회전' },
+    { Icon: ZoomIn, action: '휠 스크롤', description: '확대/축소' },
+    { Icon: Hand, action: '우클릭+드래그', description: '화면 이동' },
+    { Icon: Smartphone, action: '두 손가락', description: '터치 확대/이동' },
 ];
 
 export default function ControlHints() {
@@ -23,7 +24,7 @@ export default function ControlHints() {
                 aria-expanded={isExpanded}
                 aria-controls="control-hints-panel"
             >
-                {isExpanded ? '✕' : '❓'}
+                {isExpanded ? <X size={20} /> : <HelpCircle size={22} />}
             </button>
 
             {isExpanded && (
@@ -35,11 +36,11 @@ export default function ControlHints() {
                 >
                     <h3 className="control-hints-title">조작 방법</h3>
                     <ul className="control-hints-list">
-                        {HINTS.map((hint, idx) => (
-                            <li key={idx} className="control-hint-item">
-                                <span className="control-hint-icon" aria-hidden="true">{hint.icon}</span>
-                                <span className="control-hint-action">{hint.action}</span>
-                                <span className="control-hint-desc">{hint.description}</span>
+                        {HINTS.map(({ Icon, action, description }) => (
+                            <li key={action} className="control-hint-item">
+                                <span className="control-hint-icon" aria-hidden="true"><Icon size={16} /></span>
+                                <span className="control-hint-action">{action}</span>
+                                <span className="control-hint-desc">{description}</span>
                             </li>
                         ))}
                     </ul>

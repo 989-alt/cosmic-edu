@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ClipboardList, X, CheckCircle2, XCircle, Trophy, ArrowRight } from 'lucide-react';
 
 interface QuizQuestion {
     question: string;
@@ -136,13 +137,13 @@ export default function LearningQuiz({ moduleKey }: LearningQuizProps) {
     return (
         <>
             <button className="quiz-trigger-btn" onClick={() => setIsOpen(true)}>
-                📝 학습 퀴즈
+                <ClipboardList size={18} /> 학습 퀴즈
             </button>
 
             {isOpen && (
                 <div className="quiz-overlay">
                     <div className="quiz-modal">
-                        <button className="quiz-close" onClick={handleClose}>✕</button>
+                        <button className="quiz-close" onClick={handleClose} aria-label="닫기"><X size={20} /></button>
 
                         {!quizCompleted ? (
                             <>
@@ -180,28 +181,28 @@ export default function LearningQuiz({ moduleKey }: LearningQuizProps) {
                                 {showResult && (
                                     <div className={`quiz-explanation ${selectedAnswer === question.correctIndex ? 'correct' : 'wrong'}`}>
                                         <div className="quiz-result-icon">
-                                            {selectedAnswer === question.correctIndex ? '✅ 정답!' : '❌ 오답'}
+                                            {selectedAnswer === question.correctIndex ? <><CheckCircle2 size={18} /> 정답!</> : <><XCircle size={18} /> 오답</>}
                                         </div>
                                         <p>{question.explanation}</p>
                                         <button className="quiz-next-btn" onClick={handleNext}>
-                                            {currentQuestion < quizData.questions.length - 1 ? '다음 문제 →' : '결과 보기'}
+                                            {currentQuestion < quizData.questions.length - 1 ? <>다음 문제 <ArrowRight size={16} /></> : '결과 보기'}
                                         </button>
                                     </div>
                                 )}
                             </>
                         ) : (
                             <div className="quiz-complete">
-                                <div className="quiz-complete-icon">🎉</div>
+                                <div className="quiz-complete-icon icon-tile" aria-hidden="true"><Trophy size={34} /></div>
                                 <div className="quiz-complete-title">퀴즈 완료!</div>
                                 <div className="quiz-complete-score">
                                     {quizData.questions.length}문제 중 <strong>{score}문제</strong> 정답
                                 </div>
                                 <div className="quiz-complete-message">
                                     {score === quizData.questions.length
-                                        ? '🌟 완벽해요! 모든 문제를 맞혔어요!'
+                                        ? '완벽해요! 모든 문제를 맞혔어요.'
                                         : score >= quizData.questions.length / 2
-                                        ? '👍 잘했어요! 조금 더 복습하면 완벽해질 거예요.'
-                                        : '📚 다시 학습하고 도전해 보세요!'}
+                                        ? '잘했어요! 조금 더 복습하면 완벽해질 거예요.'
+                                        : '다시 학습하고 도전해 보세요.'}
                                 </div>
                                 <div className="quiz-complete-actions">
                                     <button className="quiz-restart-btn" onClick={handleRestart}>

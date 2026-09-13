@@ -1,4 +1,5 @@
 import './AboutModal.css';
+import { Telescope, X } from 'lucide-react';
 
 interface AboutModalProps {
     onClose: () => void;
@@ -8,8 +9,8 @@ export default function AboutModal({ onClose }: AboutModalProps) {
     return (
         <div className="about-modal-overlay" onClick={onClose}>
             <div className="about-modal-content" onClick={(e) => e.stopPropagation()}>
-                <button className="about-close-btn" onClick={onClose}>×</button>
-                <h2>🔭 COSMIC-EDU</h2>
+                <button className="about-close-btn" onClick={onClose} aria-label="닫기"><X size={20} /></button>
+                <h2><Telescope size={22} style={{ verticalAlign: '-4px', marginRight: 8 }} />COSMIC-EDU</h2>
                 <p className="about-version">버전 1.0.0</p>
 
                 <div className="about-section">
