@@ -1,6 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, useTexture } from '@react-three/drei';
 import { useRef, useState, useMemo, useEffect } from 'react';
+import { Globe, Sun, Moon, Sunrise, Sunset, Compass, Rocket, User, Lightbulb, ArrowRight, ArrowLeft } from 'lucide-react';
 import * as THREE from 'three';
 import { degToRad } from '../../utils/mathUtils';
 import { useAppStore } from '../../store/appStore';
@@ -9,14 +10,14 @@ import { SimLayout, SimStage, SimStageControls, SimDock, SimInspector, StatRow }
 
 /* 대표 대륙과 경도 */
 const REGIONS = [
-    { name: '한국/일본', lon: 127, emoji: '🇰🇷' },
-    { name: '중국', lon: 116, emoji: '🇨🇳' },
-    { name: '인도', lon: 77, emoji: '🇮🇳' },
-    { name: '유럽', lon: 15, emoji: '🇪🇺' },
-    { name: '아프리카', lon: 25, emoji: '🌍' },
-    { name: '미국 동부', lon: -74, emoji: '🇺🇸' },
-    { name: '미국 서부', lon: -118, emoji: '🇺🇸' },
-    { name: '호주', lon: 151, emoji: '🇦🇺' },
+    { name: '한국·일본', lon: 127 },
+    { name: '중국', lon: 116 },
+    { name: '인도', lon: 77 },
+    { name: '유럽', lon: 15 },
+    { name: '아프리카', lon: 25 },
+    { name: '미국 동부', lon: -74 },
+    { name: '미국 서부', lon: -118 },
+    { name: '호주', lon: 151 },
 ];
 
 function getDayNightRegions(rotationAngle: number) {
@@ -28,9 +29,9 @@ function getDayNightRegions(rotationAngle: number) {
     REGIONS.forEach(r => {
         let diff = ((r.lon - sunLon) % 360 + 540) % 360 - 180;
         if (Math.abs(diff) < 90) {
-            dayRegions.push(`${r.emoji} ${r.name}`);
+            dayRegions.push(r.name);
         } else {
-            nightRegions.push(`${r.emoji} ${r.name}`);
+            nightRegions.push(r.name);
         }
     });
 
@@ -64,28 +65,28 @@ function EarthWithTerminator({ rotationAngle }: { rotationAngle: number }) {
                 <meshBasicMaterial color="#ef4444" opacity={0.6} transparent />
             </mesh>
             <Html position={[0, 4.5, 0]} center>
-                <div style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 700 }}>N</div>
+                <div style={{ color: 'var(--accent-danger)', fontSize: '0.7rem', fontWeight: 700 }}>N</div>
             </Html>
             <Html position={[0, -4.5, 0]} center>
-                <div style={{ color: '#ef4444', fontSize: '0.7rem', fontWeight: 700 }}>S</div>
+                <div style={{ color: 'var(--accent-danger)', fontSize: '0.7rem', fontWeight: 700 }}>S</div>
             </Html>
 
-            {/* 동/서 방향 표시 — 태양빛이 +x에서 오므로, 자전 방향(서→동)에 따라 표시 */}
+            {/* 동/서 방향 표시 — 태양빛이 +x에서 오므로, 자전 방향(서에서 동)에 따라 표시 */}
             {/* 지구 자전 방향: 서에서 동으로 (위에서 보면 반시계) */}
             {/* 태양이 +x 방향이므로, +z가 동, -z가 서 */}
             <Html position={[0, 0, 5]} center>
                 <div style={{
-                    color: '#4ade80', fontSize: '0.85rem', fontWeight: 'bold',
+                    color: 'var(--accent-success)', fontSize: '0.85rem', fontWeight: 'bold',
                     background: 'rgba(0,0,0,0.6)', padding: '3px 10px', borderRadius: 6,
-                    whiteSpace: 'nowrap',
-                }}>→ 동(E)</div>
+                    whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+                }}><ArrowRight size={16} /> 동(E)</div>
             </Html>
             <Html position={[0, 0, -5]} center>
                 <div style={{
-                    color: '#f59e0b', fontSize: '0.85rem', fontWeight: 'bold',
+                    color: 'var(--accent-sun)', fontSize: '0.85rem', fontWeight: 'bold',
                     background: 'rgba(0,0,0,0.6)', padding: '3px 10px', borderRadius: 6,
-                    whiteSpace: 'nowrap',
-                }}>← 서(W)</div>
+                    whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4,
+                }}><ArrowLeft size={16} /> 서(W)</div>
             </Html>
         </group>
     );
@@ -147,15 +148,15 @@ function ObserverScene({ rotationAngle }: { rotationAngle: number }) {
 
     // rotationAngle: 0~2π (0시~24시)
     // 6시(일출) = π/2, 12시(정오) = π, 18시(일몰) = 3π/2
-    // dayAngle: 일출(0) → 정오(π/2) → 일몰(π)
+    // dayAngle: 일출(0), 정오(π/2), 일몰(π)
     const dayAngle = rotationAngle - Math.PI / 2;
 
-    // 태양 고도: sin 곡선으로 0 → 최대 → 0 (일출~일몰)
+    // 태양 고도: sin 곡선으로 0에서 최대를 거쳐 다시 0 (일출~일몰)
     // 밤에는 음수 (수평선 아래)
     const sunAltitude = Math.sin(dayAngle) * maxAltitude;
 
     // 단순한 동-서 이동 (x축 방향)
-    // 동(+x) → 서(-x)로 직선 이동
+    // 동(+x)에서 서(-x)로 직선 이동
     const sunX = Math.cos(dayAngle) * sunDist;
 
     // 고도에 따른 높이 (y축)
@@ -233,15 +234,16 @@ function ObserverScene({ rotationAngle }: { rotationAngle: number }) {
             {/* 태양 위치 라벨 */}
             <Html position={[sunX, sunY + 4, sunZ]} center>
                 <div style={{
-                    color: '#fbbf24',
+                    color: 'var(--accent-sun)',
                     fontSize: '0.75rem',
                     fontFamily: 'var(--font-mono)',
                     background: 'rgba(0,0,0,0.6)',
                     padding: '3px 8px',
                     borderRadius: 4,
                     whiteSpace: 'nowrap',
+                    display: 'flex', alignItems: 'center', gap: 4,
                 }}>
-                    ☀️ 고도 {sunAltitude.toFixed(0)}°
+                    <Sun size={14} /> 고도 {sunAltitude.toFixed(0)}°
                     {sunAltitude <= 0 && ' (수평선 아래)'}
                 </div>
             </Html>
@@ -271,22 +273,22 @@ function ObserverScene({ rotationAngle }: { rotationAngle: number }) {
 
             {/* 방위 표시 - 수평선 높이에 */}
             <Html position={[45, 2, 0]} center>
-                <div style={{ color: '#4ade80', fontSize: '1rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: 6 }}>
-                    동(E) 🌅
+                <div style={{ color: 'var(--accent-success)', fontSize: '1rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                    <Sunrise size={18} /> 동(E)
                 </div>
             </Html>
             <Html position={[-45, 2, 0]} center>
-                <div style={{ color: '#f59e0b', fontSize: '1rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: 6 }}>
-                    🌇 서(W)
+                <div style={{ color: 'var(--accent-sun)', fontSize: '1rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                    <Sunset size={18} /> 서(W)
                 </div>
             </Html>
             <Html position={[0, 2, -45]} center>
-                <div style={{ color: '#818cf8', fontSize: '1rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: 6 }}>
+                <div style={{ color: 'var(--text-accent)', fontSize: '1rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: 6 }}>
                     남(S)
                 </div>
             </Html>
             <Html position={[0, 2, 45]} center>
-                <div style={{ color: '#94a3b8', fontSize: '0.9rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: 6 }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 'bold', background: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: 6 }}>
                     북(N)
                 </div>
             </Html>
@@ -354,11 +356,11 @@ function CompassHUD() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.65rem', color: 'var(--text-muted)',
         }}>
-            <div style={{ position: 'absolute', top: 4, fontWeight: 700, color: '#ef4444' }}>N</div>
+            <div style={{ position: 'absolute', top: 4, fontWeight: 700, color: 'var(--accent-danger)' }}>N</div>
             <div style={{ position: 'absolute', bottom: 4 }}>S</div>
             <div style={{ position: 'absolute', left: 6 }}>W</div>
             <div style={{ position: 'absolute', right: 6 }}>E</div>
-            <div style={{ fontSize: '1.2rem' }}>🧭</div>
+            <Compass size={24} />
         </div>
     );
 }
@@ -438,10 +440,10 @@ export default function DayNight() {
             <SimStageControls>
                 <div className="scale-toggle">
                     <button className={`scale-btn ${viewMode === 'space' ? 'active' : ''}`} onClick={() => setViewMode('space')}>
-                        🛸 우주 시점
+                        <Rocket size={16} /> 우주 시점
                     </button>
                     <button className={`scale-btn ${viewMode === 'observer' ? 'active' : ''}`} onClick={() => setViewMode('observer')}>
-                        👤 관측자 시점 (지표면)
+                        <User size={16} /> 관측자 시점 (지표면)
                     </button>
                 </div>
             </SimStageControls>
@@ -449,51 +451,54 @@ export default function DayNight() {
 
 
             <SimInspector
-                title="🌓 자전과 일주 운동"
+                title={<><Globe size={18} /> 자전과 일주 운동</>}
                 sections={[
                     {
                         id: 'info', label: '정보', content: (
                             <>
-                                <p style={{ marginBottom: 12 }}>
-                                    지구는 하루에 한 바퀴 자전합니다. 자전 때문에 태양과 별이 동쪽에서 떠서 서쪽으로 지는 것처럼 보입니다.
-                                </p>
+                                <div className="insp-key">
+                                    <Lightbulb size={18} />
+                                    <span>지구는 하루에 한 바퀴 스스로 돕니다.</span>
+                                </div>
                                 <StatRow label="현재 시각 (약)" value={`${hourOfDay}:00`} />
                                 <StatRow label="자전 각도" value={`${Math.round(timeValue * 360)}°`} />
                                 <StatRow label="자전축 기울기" value="23.44°" />
-
-                                {viewMode === 'observer' && (
-                                    <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                                            💡 <strong>관측자 시점:</strong> 지표면에서 하늘을 바라보고 있습니다.
-                                            태양이 동쪽에서 떠서 남쪽을 지나 서쪽으로 지는 모습을 관찰하세요.
-                                            마우스로 시점을 자유롭게 움직여보세요!
-                                        </p>
-                                    </div>
-                                )}
+                                <StatRow label="자전 방향" value="서쪽에서 동쪽으로" />
+                                <div className="insp-note">
+                                    지구가 서쪽에서 동쪽으로 돌기 때문에, 태양과 별은 반대로 동쪽에서 떠서 서쪽으로 지는 것처럼 보입니다.
+                                    {viewMode === 'observer' && ' 관측자 시점에서는 지표면에 서서 하늘을 봅니다. 마우스로 시점을 돌려 보세요.'}
+                                </div>
                             </>
                         ),
                     },
                     {
                         id: 'regions', label: '지역', content: (
                             <>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fbbf24', marginBottom: 6 }}>
-                                    🌍 대륙별 낮/밤 상태
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--accent-sun)', marginBottom: 8 }}>
+                                    <Globe size={16} /> 대륙별 낮·밤 상태
                                 </div>
                                 <div style={{ display: 'flex', gap: 12 }}>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '0.65rem', color: '#fbbf24', marginBottom: 4 }}>☀️ 낮 지역</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: 'var(--accent-sun)', marginBottom: 4 }}>
+                                            <Sun size={14} /> 낮 지역
+                                        </div>
                                         {dayRegions.map(r => (
-                                            <div key={r} style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{r}</div>
+                                            <div key={r} style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{r}</div>
                                         ))}
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '0.65rem', color: '#818cf8', marginBottom: 4 }}>🌙 밤 지역</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: 'var(--text-accent)', marginBottom: 4 }}>
+                                            <Moon size={14} /> 밤 지역
+                                        </div>
                                         {nightRegions.map(r => (
-                                            <div key={r} style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{r}</div>
+                                            <div key={r} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{r}</div>
                                         ))}
                                     </div>
                                 </div>
                                 {viewMode === 'observer' && <CompassHUD />}
+                                <div className="insp-note">
+                                    같은 시각에도 지구 반대편은 밤입니다. 햇빛을 받는 절반만 낮이기 때문입니다.
+                                </div>
                             </>
                         ),
                     },

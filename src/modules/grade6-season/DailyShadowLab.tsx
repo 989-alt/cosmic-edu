@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Sun, Lightbulb } from 'lucide-react';
 import { useSeasonStore } from '../../store/seasonStore';
 import {
     KOREA_LAT,
@@ -88,10 +89,10 @@ function skyColor(alt: number): RGB {
 }
 
 const SEASONS = [
-    { months: [3, 4, 5], name: '봄', emoji: '🌸' },
-    { months: [6, 7, 8], name: '여름', emoji: '☀️' },
-    { months: [9, 10, 11], name: '가을', emoji: '🍂' },
-    { months: [12, 1, 2], name: '겨울', emoji: '❄️' },
+    { months: [3, 4, 5], name: '봄', color: 'var(--season-spring)' },
+    { months: [6, 7, 8], name: '여름', color: 'var(--season-summer)' },
+    { months: [9, 10, 11], name: '가을', color: 'var(--season-autumn)' },
+    { months: [12, 1, 2], name: '겨울', color: 'var(--season-winter)' },
 ];
 function seasonOf(month: number) {
     const m = Math.round(month);
@@ -213,7 +214,7 @@ export default function DailyShadowLab() {
         setPlaying(false);
     }
 
-    // ▶ 재생: 일출→일몰 12초
+    // ▶ 재생: 일출->일몰 12초
     useEffect(() => {
         if (!playing) return;
         const span = sunset - sunrise;
@@ -255,7 +256,7 @@ export default function DailyShadowLab() {
     const isNoon = Math.abs(hour - 12) < 0.06;
     const season = seasonOf(month);
 
-    // 고도각 호: 지평선 → 태양 시선
+    // 고도각 호: 지평선 -> 태양 시선
     const sight = Math.atan2(HORIZON_Y - sun.y, sun.x - CX);
     const rightSide = sun.x >= CX;
     const arcStart = rightSide ? 0 : Math.PI;
@@ -342,33 +343,36 @@ export default function DailyShadowLab() {
                     {/* 방위 */}
                     <text x="24" y="474" fontSize="20" fill="#4ade80">동(E)</text>
                     <text x="976" y="474" fontSize="20" fill="#f59e0b" textAnchor="end">서(W)</text>
-                    <text x={CX} y="524" fontSize="18" fill="#cbd5e1" textAnchor="middle">남(S) ← 관측자가 보는 방향</text>
+                    <text x={CX} y="524" fontSize="18" fill="#cbd5e1" textAnchor="middle">남(S) — 관측자가 보는 방향</text>
                 </svg>
 
                 <SimHud items={[
+                    { label: '태양 고도', value: `${alt.toFixed(1)}°`, color: 'var(--accent-sun)' },
+                    { label: '그림자 길이', value: night ? '—' : `${shadowM.toFixed(2)} m`, color: 'var(--text-accent)' },
                     { label: '시각', value: formatHour(hour) },
-                    { label: '태양 고도', value: `${alt.toFixed(1)}°`, color: '#fbbf24' },
-                    { label: '그림자 길이', value: night ? '—' : `${shadowM.toFixed(2)} m`, color: '#818cf8' },
-                    { label: '계절', value: `${season.emoji} ${season.name}` },
+                    { label: '계절', value: season.name, color: season.color },
                 ]} />
             </SimStage>
 
             <SimInspector
-                title="☀️ 하루 동안 태양 고도와 그림자"
+                title={<><Sun size={18} /> 하루 동안 태양 고도와 그림자</>}
                 sections={[
                     {
                         id: 'desc', label: '설명', content: (
                             <>
-                                <p style={{ marginTop: 0 }}>
-                                    태양이 높이 떠 있을수록 막대의 그림자는 짧아집니다. 태양 고도와 그림자 길이는 정반대로 움직입니다.
-                                    하루 중 태양이 정남쪽에 올 때(남중) 고도가 가장 높고, 그때 그림자가 가장 짧습니다.
-                                    같은 남중이라도 계절마다 남중 고도가 달라서, 여름에는 높고 겨울에는 낮습니다.
-                                    아래 프리셋으로 계절을 바꿔 가며 회색 점선(하지·동지) 궤적과 비교해 보세요.
-                                </p>
+                                <div className="insp-key">
+                                    <Lightbulb size={18} />
+                                    <span>태양이 높이 뜰수록 그림자는 짧아집니다.</span>
+                                </div>
                                 <StatRow label="남중 고도" value={`${meridianAltitude(KOREA_LAT, decl).toFixed(1)}°`} />
                                 <StatRow label="낮 길이" value={`${dayLength.toFixed(1)}시간`} />
                                 <StatRow label="일출" value={formatHour(sunrise)} />
                                 <StatRow label="일몰" value={formatHour(sunset)} />
+                                <div className="insp-note">
+                                    태양이 정남쪽에 오는 때를 남중이라고 합니다. 남중일 때 고도가 가장 높고 그림자가 가장 짧습니다.
+                                    같은 남중이라도 여름은 높고 겨울은 낮습니다. 아래 프리셋으로 계절을 바꿔
+                                    회색 점선(하지·동지) 궤적과 비교해 보세요.
+                                </div>
                             </>
                         ),
                     },

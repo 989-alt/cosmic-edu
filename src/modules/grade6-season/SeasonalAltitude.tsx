@@ -2,6 +2,9 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html, Line } from '@react-three/drei';
 import { useMemo, useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
+import {
+    Flower2, Sun, Leaf, Snowflake, Sunrise, Sunset, Lightbulb, HelpCircle, type LucideIcon,
+} from 'lucide-react';
 import { degToRad } from '../../utils/mathUtils';
 import {
     KOREA_LAT, declination, meridianAltitude, sunAltitude, sunAzimuth, sunTimes, hourAngle, formatHour,
@@ -38,12 +41,12 @@ function arcPoints(month: number): THREE.Vector3[] {
     return pts;
 }
 
-function seasonOf(month: number): { name: string; emoji: string; color: string } {
+function seasonOf(month: number): { name: string; Icon: LucideIcon; color: string } {
     const m = Math.round(month);
-    if (m >= 3 && m <= 5) return { name: '봄', emoji: '🌸', color: '#f472b6' };
-    if (m >= 6 && m <= 8) return { name: '여름', emoji: '☀️', color: '#ef4444' };
-    if (m >= 9 && m <= 11) return { name: '가을', emoji: '🍂', color: '#f59e0b' };
-    return { name: '겨울', emoji: '❄️', color: '#3b82f6' };
+    if (m >= 3 && m <= 5) return { name: '봄', Icon: Flower2, color: 'var(--season-spring)' };
+    if (m >= 6 && m <= 8) return { name: '여름', Icon: Sun, color: 'var(--season-summer)' };
+    if (m >= 9 && m <= 11) return { name: '가을', Icon: Leaf, color: 'var(--season-autumn)' };
+    return { name: '겨울', Icon: Snowflake, color: 'var(--season-winter)' };
 }
 
 function Ground() {
@@ -85,7 +88,7 @@ function Ground() {
     );
 }
 
-/** 원점 → 남중 태양 선 + 지평선(−z)과의 각도 호 + 라벨 */
+/** 원점 -> 남중 태양 선 + 지평선(−z)과의 각도 호 + 라벨 */
 function MeridianAngle({ decl }: { decl: number }) {
     const alt = meridianAltitude(KOREA_LAT, decl);
     const altRad = degToRad(alt);
@@ -152,8 +155,11 @@ function SunArc({ month, animHour }: { month: number; animHour: number }) {
                 <meshBasicMaterial color="#ff6b35" />
             </mesh>
             <Html position={[rise.x, rise.y + 1.2, rise.z]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
-                <div style={{ color: '#ff6b35', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
-                    🌅 일출 {formatHour(sunrise)}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    color: '#ff6b35', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
+                }}>
+                    <Sunrise size={14} /> 일출 {formatHour(sunrise)}
                 </div>
             </Html>
 
@@ -162,8 +168,11 @@ function SunArc({ month, animHour }: { month: number; animHour: number }) {
                 <meshBasicMaterial color="#c44569" />
             </mesh>
             <Html position={[set.x, set.y + 1.2, set.z]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
-                <div style={{ color: '#c44569', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap' }}>
-                    🌇 일몰 {formatHour(sunset)}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    color: '#c44569', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
+                }}>
+                    <Sunset size={14} /> 일몰 {formatHour(sunset)}
                 </div>
             </Html>
 
@@ -177,7 +186,7 @@ function DayNightCircle({ dayLength }: { dayLength: number }) {
     return (
         <div style={{
             width: 90, height: 90, borderRadius: '50%', position: 'relative',
-            background: `conic-gradient(#fbbf24 0deg, #fbbf24 ${dayDeg}deg, #1e293b ${dayDeg}deg, #1e293b 360deg)`,
+            background: `conic-gradient(var(--accent-sun) 0deg, var(--accent-sun) ${dayDeg}deg, var(--bg-raised) ${dayDeg}deg, var(--bg-raised) 360deg)`,
             border: '2px solid var(--border-subtle)',
         }}>
             <div style={{
@@ -205,7 +214,7 @@ function MonthlyDayLength({ month, onPick }: { month: number; onPick: (m: number
         <>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8 }}>
                 <span>월별 낮 길이 (시간)</span>
-                <span style={{ color: '#fbbf24', fontFamily: 'var(--font-mono)' }}>{current.dayLength.toFixed(1)}h</span>
+                <span style={{ color: 'var(--accent-sun)', fontFamily: 'var(--font-mono)' }}>{current.dayLength.toFixed(1)}h</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 70 }}>
                 {rows.map((m) => {
@@ -217,21 +226,21 @@ function MonthlyDayLength({ month, onPick }: { month: number; onPick: (m: number
                             onClick={() => onPick(m.month)}>
                             <div style={{
                                 height, width: '100%', borderRadius: '2px 2px 0 0',
-                                background: active ? '#fbbf24' : m.dayLength > 12 ? '#ff8c00' : '#3b82f6',
+                                background: active ? 'var(--accent-sun)' : m.dayLength > 12 ? 'var(--season-autumn)' : 'var(--season-winter)',
                                 opacity: active ? 1 : 0.4, transition: 'all 0.2s',
                             }} />
                             <span style={{
-                                fontSize: '0.5rem', color: active ? '#fbbf24' : 'var(--text-muted)',
+                                fontSize: '0.5rem', color: active ? 'var(--accent-sun)' : 'var(--text-muted)',
                                 fontWeight: active ? 'bold' : 'normal',
                             }}>{m.month}</span>
                         </div>
                     );
                 })}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.5rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                <span>짧은 낮 ❄️</span>
-                <span>― 12h (낮=밤) ―</span>
-                <span>☀️ 긴 낮</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.5rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Snowflake size={12} /> 짧은 낮</span>
+                <span>12h (낮=밤)</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Sun size={12} /> 긴 낮</span>
             </div>
         </>
     );
@@ -249,7 +258,7 @@ export default function SeasonalAltitude() {
     const setMonth = useSeasonStore((s) => s.setMonth);
 
     const [isAnimating, setIsAnimating] = useState(false);
-    const [animT, setAnimT] = useState(-1); // -1 = 정지, 0~1 = 일출→일몰 진행
+    const [animT, setAnimT] = useState(-1); // -1 = 정지, 0~1 = 일출->일몰 진행
     const rafRef = useRef<number>(0);
     const startRef = useRef<number>(0);
 
@@ -280,10 +289,10 @@ export default function SeasonalAltitude() {
     };
 
     const hud = [
+        { label: '남중 고도', value: `${alt.toFixed(1)}°`, color: 'var(--accent-sun)' },
         animHour >= 0
-            ? { label: '현재 시각', value: formatHour(animHour), color: '#fbbf24' }
-            : { label: '남중 고도', value: `${alt.toFixed(1)}°`, color: '#fbbf24' },
-        { label: '낮 길이', value: `${dayLength.toFixed(1)}h`, color: '#ff8c00' },
+            ? { label: '현재 시각', value: formatHour(animHour), color: 'var(--accent-sun)' }
+            : { label: '낮 길이', value: `${dayLength.toFixed(1)}h`, color: 'var(--season-autumn)' },
         { label: '일출', value: formatHour(sunrise), color: '#ff6b35' },
         { label: '일몰', value: formatHour(sunset), color: '#c44569' },
     ];
@@ -305,14 +314,15 @@ export default function SeasonalAltitude() {
             </SimStage>
 
             <SimInspector
-                title={`📅 ${Math.round(month)}월 — ${season.emoji} ${season.name}`}
+                title={<><season.Icon size={18} style={{ color: season.color }} /> {Math.round(month)}월 — {season.name}</>}
                 sections={[
                     {
                         id: 'info', label: '설명', content: (
                             <>
-                                <p style={{ marginBottom: 12 }}>
-                                    지구의 공전에 따라 태양의 남중 고도가 달라지며, 이에 따라 <strong>낮의 길이</strong>가 변합니다.
-                                </p>
+                                <div className="insp-key">
+                                    <Lightbulb size={18} />
+                                    <span>남중 고도가 높은 계절일수록 낮이 깁니다.</span>
+                                </div>
                                 <StatRow label="남중 고도" value={`${alt.toFixed(1)}°`} />
                                 <StatRow label="낮 길이" value={`${dayLength.toFixed(1)}시간`} />
                                 <StatRow label="밤 길이" value={`${(24 - dayLength).toFixed(1)}시간`} />
@@ -322,12 +332,9 @@ export default function SeasonalAltitude() {
                                     <DayNightCircle dayLength={dayLength} />
                                 </div>
 
-                                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                                        <strong>💡 핵심:</strong> 남중 고도가 높을수록(여름) → 태양이 하늘에 더 오래 머무름 →
-                                        <strong>낮이 길어지고</strong> 밤이 짧아집니다.
-                                        <br />▶ 버튼을 눌러 태양 궤적을 관찰하세요!
-                                    </p>
+                                <div className="insp-note">
+                                    남중 고도가 높은 여름에는 태양이 하늘에 더 오래 머뭅니다. 그래서 낮이 길어지고 밤이 짧아집니다.
+                                    아래 재생 버튼을 누르면 하루 동안의 태양 궤적을 볼 수 있습니다.
                                 </div>
                             </>
                         ),
@@ -339,14 +346,15 @@ export default function SeasonalAltitude() {
                     {
                         id: 'why', label: '왜?', content: (
                             <>
-                                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                                    <strong>🔑 왜 남중 고도가 달라질까요?</strong>
-                                </p>
-                                <ul style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.8, paddingLeft: 16, marginTop: 8 }}>
+                                <div className="insp-key">
+                                    <HelpCircle size={18} />
+                                    <span>남중 고도는 왜 달라질까요?</span>
+                                </div>
+                                <ul className="insp-list" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
                                     <li>지구의 <strong>자전축은 항상 같은 방향</strong>으로 기울어져 있습니다.</li>
                                     <li>공전하면서 <strong>북반구가 태양을 향하는 정도</strong>가 달라집니다.</li>
-                                    <li><span style={{ color: '#ef4444' }}>여름(6월)</span>: 북반구가 태양을 향함 → 남중 고도 ↑</li>
-                                    <li><span style={{ color: '#3b82f6' }}>겨울(12월)</span>: 북반구가 태양에서 멀어짐 → 남중 고도 ↓</li>
+                                    <li><span style={{ color: 'var(--season-summer)' }}>여름(6월)</span>에는 북반구가 태양을 향해 남중 고도가 높아집니다.</li>
+                                    <li><span style={{ color: 'var(--season-winter)' }}>겨울(12월)</span>에는 북반구가 태양에서 멀어져 남중 고도가 낮아집니다.</li>
                                 </ul>
                             </>
                         ),

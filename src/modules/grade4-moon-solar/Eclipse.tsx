@@ -1,6 +1,7 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html, useTexture } from '@react-three/drei';
 import { useState, useMemo, useRef } from 'react';
+import { Eclipse as EclipseIcon, Lightbulb, Crown, Moon } from 'lucide-react';
 import * as THREE from 'three';
 import { degToRad } from '../../utils/mathUtils';
 import { eclipseTypes, eclipseEducation } from '../../data/eclipseData';
@@ -149,8 +150,8 @@ function MoonOrbit({ lunarDay, orbitTilt, eclipseType }: { lunarDay: number; orb
             )}
 
             <Html position={[x, y + 1.2, z]} center>
-                <div style={{ color: '#d1d5db', fontSize: '0.7rem', fontFamily: 'var(--font-sans)' }}>
-                    달{isTotalLunar ? ' 🔴' : isTotalSolar ? ' 👑' : ''}
+                <div style={{ color: 'var(--accent-moon)', fontSize: '0.7rem', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
+                    달{isTotalLunar ? ' · 블러드문' : isTotalSolar ? ' · 코로나' : ''}
                 </div>
             </Html>
         </group>
@@ -223,60 +224,75 @@ export default function Eclipse() {
                     <OrbitControls enablePan={false} minDistance={15} maxDistance={100} />
 
                     <Html position={[60, 10, 0]} center>
-                        <div style={{ color: '#fbbf24', fontSize: '0.75rem', fontFamily: 'var(--font-sans)' }}>태양</div>
+                        <div style={{ color: 'var(--accent-sun)', fontSize: '0.75rem', fontFamily: 'var(--font-sans)' }}>태양</div>
                     </Html>
                     <Html position={[0, 4, 0]} center>
-                        <div style={{ color: '#4a90d9', fontSize: '0.75rem', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>지구</div>
+                        <div style={{ color: 'var(--accent-earth)', fontSize: '0.75rem', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>지구</div>
                     </Html>
                 </Canvas>
             </SimStage>
 
             <SimInspector
-                title={eclipseInfo ? `🌑 ${eclipseInfo.name}` : '🌑 일식·월식 시뮬레이터'}
+                title={eclipseInfo
+                    ? <><EclipseIcon size={18} /> {eclipseInfo.name}</>
+                    : <><EclipseIcon size={18} /> 일식·월식 시뮬레이터</>}
                 sections={[
                     {
                         id: 'info', label: '설명', content: (
                             <>
                                 {eclipseInfo ? (
                                     <>
-                                        <p style={{ marginBottom: 12 }}>{eclipseInfo.description}</p>
-                                        <p style={{ marginBottom: 12, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                                            <strong>조건:</strong> {eclipseInfo.condition}
-                                        </p>
+                                        <div className="insp-key">
+                                            <Lightbulb size={18} />
+                                            <span>{eclipseInfo.description}</span>
+                                        </div>
+                                        <StatRow label="종류" value={eclipseInfo.type === 'solar' ? '일식' : '월식'} />
+                                        <StatRow label="음력 날짜" value={`${lunarDay}일`} />
+                                        <StatRow label="궤도 기울기" value={`${orbitTilt.toFixed(1)}°`} />
+                                        <div className="insp-note">{eclipseInfo.condition}</div>
                                         {(eclipseType === 'total-solar' || eclipseType === 'partial-solar') && (
-                                            <div style={{ background: 'rgba(255,228,181,0.1)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
-                                                <div style={{ fontSize: '0.8rem', color: '#FFE4B5', marginBottom: 4 }}>👑 코로나 현상</div>
+                                            <div style={{ background: 'var(--bg-raised)', padding: 10, borderRadius: 8, marginTop: 12 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--accent-sun)', marginBottom: 4 }}>
+                                                    <Crown size={16} /> 코로나 현상
+                                                </div>
                                                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                                    개기일식 때 달이 태양을 완전히 가리면, 평소에 보이지 않던 태양의 <strong>코로나(대기)</strong>가
-                                                    달 주위로 하얗게 빛나며 보입니다. 태양의 코로나는 온도가 100만°C 이상이지만,
-                                                    밀도가 매우 낮아 평소에는 태양 표면의 밝은 빛에 가려져 보이지 않습니다.
+                                                    달이 태양을 완전히 가리면 태양의 대기인 코로나가 하얗게 보입니다.
+                                                    코로나는 100만°C가 넘지만 아주 옅어서, 평소에는 태양 표면 빛에 가려집니다.
                                                 </p>
                                             </div>
                                         )}
                                         {(eclipseType === 'total-lunar' || eclipseType === 'partial-lunar') && (
-                                            <div style={{ background: 'rgba(139,0,0,0.1)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
-                                                <div style={{ fontSize: '0.8rem', color: '#CC4444', marginBottom: 4 }}>🔴 블러드문 현상</div>
+                                            <div style={{ background: 'var(--bg-raised)', padding: 10, borderRadius: 8, marginTop: 12 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--accent-danger)', marginBottom: 4 }}>
+                                                    <Moon size={16} /> 블러드문 현상
+                                                </div>
                                                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                                    개기월식 때 달이 붉게 보이는 이유는 지구 대기가 태양빛을 <strong>굴절</strong>시키기 때문입니다.
-                                                    파란빛은 대기에서 산란되고, <strong>붉은빛만</strong> 지구 대기를 통과하여 달에 도달합니다.
-                                                    이것은 석양이 붉은 것과 같은 원리입니다!
+                                                    월식 때 달이 붉은 건 지구 대기가 햇빛을 꺾기 때문입니다.
+                                                    파란빛은 흩어지고 붉은빛만 통과해 달에 닿습니다. 석양이 붉은 것과 같은 원리입니다.
                                                 </p>
                                             </div>
                                         )}
                                     </>
                                 ) : (
-                                    <p style={{ marginBottom: 12 }}>
-                                        음력 날짜 슬라이더를 1일(삭) 또는 15일(보름)으로 맞추고, 궤도 기울기를 조절해보세요.<br /><br />
-                                        <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
-                                            * 진한 검은색 원뿔은 <b>본영(완전한 그림자)</b>, 옅은 원뿔은 <b>반영(부분 그림자)</b>을 나타냅니다.
-                                        </span>
-                                    </p>
+                                    <>
+                                        <div className="insp-key">
+                                            <Lightbulb size={18} />
+                                            <span>태양·달·지구가 일직선일 때만 식이 일어나요.</span>
+                                        </div>
+                                        <StatRow label="음력 날짜" value={`${lunarDay}일`} />
+                                        <StatRow label="궤도 기울기" value={`${orbitTilt.toFixed(1)}°`} />
+                                        <StatRow label="식 현상" value="없음" />
+                                        <div className="insp-note">
+                                            음력 날짜를 1일(삭)이나 15일(보름)에 맞추고 궤도 기울기를 줄여 보세요.
+                                            진한 원뿔이 본영(완전한 그림자), 옅은 원뿔이 반영(부분 그림자)입니다.
+                                        </div>
+                                    </>
                                 )}
-                                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, marginTop: 12 }}>
-                                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                                        <strong>💡 왜 매달 일식/월식이 일어나지 않을까?</strong><br />
-                                        {eclipseEducation.whyNotEveryMonth}
-                                    </p>
+                                <div className="insp-note">
+                                    <strong style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', marginBottom: 4 }}>
+                                        <Lightbulb size={16} /> 왜 매달 일어나지 않을까?
+                                    </strong>
+                                    {eclipseEducation.whyNotEveryMonth}
                                 </div>
                             </>
                         ),

@@ -226,6 +226,7 @@ svg.lucide {
 }
 
 .module-card-icon {
+  display: grid;
   width: 56px;
   height: 56px;
   margin-bottom: 18px;
@@ -235,6 +236,7 @@ svg.lucide {
 .module-card-icon.moon { background: rgba(203, 213, 225, 0.14); color: var(--accent-moon); }
 
 .module-card-grade {
+  display: block;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-accent);
@@ -657,8 +659,11 @@ svg.lucide {
 /* === Canvas container === */
 .canvas-container {
   width: 100%;
+  flex: 1;
+  min-height: 0;
   height: 100%;
   position: relative;
+  overflow: hidden;
 }
 
 /* === Back button === */

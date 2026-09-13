@@ -1,6 +1,7 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Html, useTexture } from '@react-three/drei';
 import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import { Orbit, Globe, Lightbulb, GraduationCap, Ruler, Sparkles } from 'lucide-react';
 import * as THREE from 'three';
 import { planets, SUN_DIAMETER } from '../../data/planets';
 import { ScaleMode, getSunRadius, getPlanetRadius, getPlanetDistance } from '../../utils/scaleHelper';
@@ -154,7 +155,9 @@ function VolumeBar({ mode }: { mode: ScaleMode }) {
 
     return (
         <div className="volume-bar-container" style={{ position: 'static', left: 'auto', right: 'auto', bottom: 'auto' }}>
-            <div className="volume-bar-title">🪐 행성 크기 비교 (지구 = 1 기준)</div>
+            <div className="volume-bar-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Orbit size={16} /> 행성 크기 비교 (지구 = 1 기준)
+            </div>
             <div className="volume-bar-list">
                 {planets.map((p) => {
                     const ratio = p.diameter / EARTH_DIAMETER;
@@ -163,7 +166,7 @@ function VolumeBar({ mode }: { mode: ScaleMode }) {
                     return (
                         <div key={p.id} className="volume-bar-item">
                             <div style={{
-                                fontSize: '0.5rem', color: isEarth ? '#fbbf24' : 'var(--text-muted)',
+                                fontSize: '0.5rem', color: isEarth ? 'var(--accent-sun)' : 'var(--text-muted)',
                                 fontFamily: 'var(--font-mono)', marginBottom: 2, fontWeight: isEarth ? 'bold' : 'normal',
                             }}>
                                 ×{ratio < 1 ? ratio.toFixed(2) : ratio.toFixed(1)}
@@ -172,13 +175,13 @@ function VolumeBar({ mode }: { mode: ScaleMode }) {
                                 className="volume-bar-bar"
                                 style={{
                                     height: logHeight,
-                                    background: isEarth ? '#fbbf24' : p.color,
+                                    background: isEarth ? 'var(--accent-sun)' : p.color,
                                     opacity: isEarth ? 1 : 0.8,
-                                    border: isEarth ? '1px solid #fbbf24' : 'none',
+                                    border: isEarth ? '1px solid var(--accent-sun)' : 'none',
                                 }}
                             />
                             <span className="volume-bar-label" style={{
-                                color: isEarth ? '#fbbf24' : undefined,
+                                color: isEarth ? 'var(--accent-sun)' : undefined,
                                 fontWeight: isEarth ? 'bold' : undefined,
                             }}>{p.nameKo}</span>
                         </div>
@@ -272,26 +275,32 @@ export default function SolarSystem() {
                 presets={planets.map(p => ({ label: p.nameKo, onClick: () => handleSelectPlanet(p), active: selectedPlanet?.id === p.id }))}
             >
                 <div className="scale-toggle">
-                    <button className={`scale-btn ${mode === 'learning' ? 'active' : ''}`} onClick={() => setMode('learning')}>🎓 학습용</button>
-                    <button className={`scale-btn ${mode === 'realSize' ? 'active' : ''}`} onClick={() => setMode('realSize')}>📏 크기 비교</button>
-                    <button className={`scale-btn ${mode === 'realDistance' ? 'active' : ''}`} onClick={() => setMode('realDistance')}>🌌 거리+크기</button>
+                    <button className={`scale-btn ${mode === 'learning' ? 'active' : ''}`} onClick={() => setMode('learning')}><GraduationCap size={16} /> 학습용</button>
+                    <button className={`scale-btn ${mode === 'realSize' ? 'active' : ''}`} onClick={() => setMode('realSize')}><Ruler size={16} /> 크기 비교</button>
+                    <button className={`scale-btn ${mode === 'realDistance' ? 'active' : ''}`} onClick={() => setMode('realDistance')}><Sparkles size={16} /> 거리+크기</button>
                 </div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flex: 1 }}>
                     {mode === 'learning' && '행성 크기와 거리를 학습용으로 과장'}
                     {mode === 'realSize' && '행성 크기는 실제 비율, 거리는 압축'}
                     {mode === 'realDistance' && '크기 실제 비율 + 거리 대수 스케일'}
-                    <br />💡 행성 버튼으로 바로 관찰 · 스페이스바+드래그로 맵 이동
+                    <br />
+                    <Lightbulb size={14} /> 행성 버튼으로 바로 관찰 · 스페이스바+드래그로 맵 이동
                 </div>
             </SimDock>
 
 
             <SimInspector
-                title={displayPlanet ? `${displayPlanet.nameKo} (${displayPlanet.name})` : '🪐 태양계 샌드박스'}
+                title={displayPlanet
+                    ? <><Globe size={18} /> {displayPlanet.nameKo} ({displayPlanet.name})</>
+                    : <><Orbit size={18} /> 태양계 샌드박스</>}
                 sections={[
                     {
                         id: 'info', label: '정보', content: displayPlanet ? (
                             <>
-                                <p style={{ marginBottom: 12 }}>{displayPlanet.description}</p>
+                                <div className="insp-key">
+                                    <Lightbulb size={18} />
+                                    <span>{displayPlanet.description}</span>
+                                </div>
                                 <StatRow label="지름" value={`${displayPlanet.diameter.toLocaleString()} km`} />
                                 <StatRow label="질량" value={displayPlanet.mass} />
                                 <StatRow label="자전 주기" value={`${Math.abs(displayPlanet.rotationPeriod).toFixed(1)}시간`} />
@@ -300,6 +309,9 @@ export default function SolarSystem() {
                                 <StatRow label="자전축 기울기" value={`${displayPlanet.axialTilt}°`} />
                                 <StatRow label="고리" value={displayPlanet.hasRing ? '있음' : '없음'} />
                                 <StatRow label="지구 대비 크기" value={`${(displayPlanet.diameter / 12742).toFixed(2)}배`} />
+                                <div className="insp-note">
+                                    태양에서 멀어질수록 한 바퀴 도는 길이 길어집니다. 그래서 공전 주기도 함께 길어집니다.
+                                </div>
                                 {selectedPlanet && (
                                     <button
                                         onClick={() => setSelectedPlanet(null)}
@@ -310,7 +322,18 @@ export default function SolarSystem() {
                                 )}
                             </>
                         ) : (
-                            <p>행성을 클릭하거나 마우스를 올리면 정보가 표시됩니다.</p>
+                            <>
+                                <div className="insp-key">
+                                    <Lightbulb size={18} />
+                                    <span>태양 둘레를 여덟 행성이 돌고 있어요.</span>
+                                </div>
+                                <StatRow label="행성 수" value={`${planets.length}개`} />
+                                <StatRow label="중심 천체" value="태양" />
+                                <StatRow label="태양 지름" value={`${SUN_DIAMETER.toLocaleString()} km`} />
+                                <div className="insp-note">
+                                    행성을 클릭하거나 마우스를 올리면 자세한 정보가 나옵니다.
+                                </div>
+                            </>
                         ),
                     },
                     {

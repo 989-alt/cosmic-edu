@@ -2,6 +2,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Html, useTexture } from '@react-three/drei';
 import { useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
+import { Globe, Lightbulb, AlertTriangle, CheckCircle2, Skull, type LucideIcon } from 'lucide-react';
 import { degToRad } from '../../utils/mathUtils';
 import { AXIAL_TILT, declination, orbitAngle } from '../../utils/solar';
 import { useSeasonStore } from '../../store/seasonStore';
@@ -54,8 +55,8 @@ function HeatmapEarth({ axialTilt, subsolarLat }: { axialTilt: number; subsolarL
         }
     });
 
-    // 자전축은 월드 고정: rotation=[0,0,+tilt] → 축 방향 (−sin t, cos t, 0), 즉 −x 로 기욺.
-    // 검산) month=6 → orbitAngle(6)=0 → 지구 (+R,0,0) → 태양 방향 −x. 축도 −x → 북극이 태양을 향함 = 북반구 여름.
+    // 자전축은 월드 고정: rotation=[0,0,+tilt] -> 축 방향 (−sin t, cos t, 0), 즉 −x 로 기욺.
+    // 검산) month=6 -> orbitAngle(6)=0 -> 지구 (+R,0,0) -> 태양 방향 −x. 축도 −x -> 북극이 태양을 향함 = 북반구 여름.
     return (
         <group rotation={[0, 0, tiltRad]}>
             <group ref={earthRef}>
@@ -163,7 +164,7 @@ function OrbitingScene({ axialTilt, month, subsolarLat }: { axialTilt: number; m
     );
 }
 
-/** 재생 중 month 를 1→12→1 로 순환. ×1 에서 1개월/초. */
+/** 재생 중 month 를 1->12->1 로 순환. ×1 에서 1개월/초. */
 function AutoAdvance({ playing, speed }: { playing: boolean; speed: number }) {
     const setMonth = useSeasonStore((s) => s.setMonth);
     useFrame((_, delta) => {
@@ -174,14 +175,41 @@ function AutoAdvance({ playing, speed }: { playing: boolean; speed: number }) {
     return null;
 }
 
-function getCatastropheText(tilt: number): string {
-    if (tilt <= 10) return '⚠️ 기울기 10° 이하: 계절 변화가 거의 없습니다. 적도~온대 기후 차이가 줄어듭니다.';
-    if (tilt <= 25) return '✅ 현재 지구(23.44°): 온화한 사계절이 존재합니다.';
-    if (tilt <= 35) return '⚠️ 30° 전후: 여름과 겨울 기온차가 더 심해지며, 극지방 빙하가 계절에 따라 크게 녹았다 얼었다를 반복합니다.';
-    if (tilt <= 50) return '🔶 40~50°: 여름 적도까지 백야가 나타나고, 겨울에는 중위도에서도 극야가 발생합니다. 농업이 어려워지기 시작합니다.';
-    if (tilt <= 65) return '🔴 50~65°: 생태계 대규모 붕괴. 대부분 지역에서 농업 불가능. 극심한 폭풍과 기온 변동으로 문명 유지 곤란.';
-    if (tilt <= 80) return '🔴 65~80°: 한쪽 반구가 수개월간 태양을 전혀 못 보는 극야 발생. 해양 순환 교란, 대멸종 가능성.';
-    return '💀 80~90°: 천왕성과 유사. 한 반구가 6개월 연속 태양을 향해 타고, 반대 반구는 6개월 암흑. 지구에 생명체 존재 불가능.';
+interface Stage { max: number; Icon: LucideIcon; color: string; title: string; text: string }
+
+const STAGES: Stage[] = [
+    {
+        max: 10, Icon: AlertTriangle, color: 'var(--accent-sun)', title: '기울기 10° 이하',
+        text: '계절 변화가 거의 없습니다. 적도와 온대의 기후 차이가 줄어듭니다.',
+    },
+    {
+        max: 25, Icon: CheckCircle2, color: 'var(--accent-success)', title: '현재 지구 (23.44°)',
+        text: '온화한 사계절이 존재합니다.',
+    },
+    {
+        max: 35, Icon: AlertTriangle, color: 'var(--accent-sun)', title: '30° 전후',
+        text: '여름과 겨울의 기온차가 더 심해집니다. 극지방 빙하가 계절마다 크게 녹았다 얼었다를 반복합니다.',
+    },
+    {
+        max: 50, Icon: AlertTriangle, color: 'var(--accent-sun)', title: '40~50°',
+        text: '여름에는 적도까지 백야가 나타나고, 겨울에는 중위도에서도 극야가 생깁니다. 농사를 짓기 어려워집니다.',
+    },
+    {
+        max: 65, Icon: AlertTriangle, color: 'var(--accent-danger)', title: '50~65°',
+        text: '생태계가 크게 무너집니다. 대부분의 지역에서 농사가 불가능하고, 폭풍과 기온 변동이 극심해집니다.',
+    },
+    {
+        max: 80, Icon: AlertTriangle, color: 'var(--accent-danger)', title: '65~80°',
+        text: '한쪽 반구가 몇 달 동안 태양을 전혀 보지 못합니다. 바닷물의 흐름이 흐트러지고 대멸종이 일어날 수 있습니다.',
+    },
+    {
+        max: 90, Icon: Skull, color: 'var(--accent-danger)', title: '80~90° (천왕성과 비슷)',
+        text: '한 반구가 6개월 내내 태양을 향해 타고, 반대쪽은 6개월 동안 어둡습니다. 생명체가 살 수 없습니다.',
+    },
+];
+
+function stageOf(tilt: number): Stage {
+    return STAGES.find((s) => tilt <= s.max) ?? STAGES[STAGES.length - 1];
 }
 
 export default function AxisImpact() {
@@ -208,40 +236,52 @@ export default function AxisImpact() {
                         minPolarAngle={0.35} maxPolarAngle={1.35} />
                 </Canvas>
                 <SimHud items={[
+                    { label: '태양 직사 위도', value: `${subsolarLat.toFixed(1)}°`, color: 'var(--accent-sun)' },
                     { label: '자전축 기울기', value: `${axialTilt.toFixed(1)}°` },
-                    { label: '태양 직사 위도', value: `${subsolarLat.toFixed(1)}°` },
                     { label: '현재 계절', value: seasonLabel },
                 ]} />
             </SimStage>
 
             <SimInspector
-                title="🌐 자전축 기울기와 계절"
+                title={<><Globe size={18} /> 자전축 기울기와 계절</>}
                 sections={[
                     {
                         id: 'desc', label: '설명', content: (
                             <>
-                                <p style={{ marginBottom: 12 }}>
-                                    자전축의 기울기를 변경하면 지구 표면에 도달하는 태양 에너지 분포가 달라집니다.
-                                    🔴빨간색은 여름(에너지 집중), 🔵파란색은 겨울(에너지 분산)입니다.
-                                </p>
+                                <div className="insp-key">
+                                    <Lightbulb size={18} />
+                                    <span>자전축이 기울어져 있어서 계절이 생깁니다.</span>
+                                </div>
                                 <StatRow label="자전축 기울기" value={`${axialTilt.toFixed(1)}°`} />
                                 <StatRow label="태양 직사 위도" value={`${subsolarLat.toFixed(1)}°`} />
                                 <StatRow label="현재 계절" value={seasonLabel} />
-                                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                                        <strong>💡 종합:</strong> 자전축 기울기 → 남중 고도 변화 → 에너지 밀도 변화 → 기온 변화.
-                                        이것이 계절이 생기는 근본 원인입니다!
-                                    </p>
+                                <div className="insp-note">
+                                    지구 표면의 빨간색은 여름(에너지 집중), 파란색은 겨울(에너지 분산)입니다.
+                                    자전축이 기울면 남중 고도가 달라지고, 그러면 에너지 밀도가 달라져 기온이 변합니다.
                                 </div>
                             </>
                         ),
                     },
                     {
-                        id: 'catastrophe', label: '재앙 단계', content: (
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                                {getCatastropheText(axialTilt)}
-                            </p>
-                        ),
+                        id: 'catastrophe', label: '재앙 단계', content: (() => {
+                            const stage = stageOf(axialTilt);
+                            return (
+                                <>
+                                    <div style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                                        padding: '4px 10px', marginBottom: 10, borderRadius: 'var(--radius-sm)',
+                                        border: '1px solid currentColor', color: stage.color,
+                                        fontSize: '0.78rem', fontWeight: 700,
+                                    }}>
+                                        <stage.Icon size={16} />
+                                        <span>{stage.title}</span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                                        {stage.text}
+                                    </p>
+                                </>
+                            );
+                        })(),
                     },
                 ]}
             />

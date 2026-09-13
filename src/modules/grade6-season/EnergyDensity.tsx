@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Flame, Lightbulb } from 'lucide-react';
 import { degToRad } from '../../utils/mathUtils';
 import {
     KOREA_LAT, declination, meridianAltitude, energyDensity, irradiatedArea,
@@ -48,11 +49,11 @@ function arrowHead(gx: number, gy: number, rad: number, size: number): string {
     return `${gx},${gy} ${bx - w * -s},${by - w * c} ${bx + w * -s},${by + w * c}`;
 }
 
-function getSeasonLabel(altitude: number): { label: string; emoji: string; color: string } {
-    if (altitude >= 70) return { label: '여름 (하지 전후)', emoji: '☀️', color: '#ef4444' };
-    if (altitude >= 55) return { label: '봄/가을', emoji: '🌤️', color: '#fbbf24' };
-    if (altitude >= 40) return { label: '초겨울/늦겨울', emoji: '🌥️', color: '#60a5fa' };
-    return { label: '겨울 (동지 전후)', emoji: '❄️', color: '#3b82f6' };
+function getSeasonLabel(altitude: number): { label: string; color: string } {
+    if (altitude >= 70) return { label: '여름 (하지 전후)', color: 'var(--season-summer)' };
+    if (altitude >= 55) return { label: '봄/가을', color: 'var(--season-autumn)' };
+    if (altitude >= 40) return { label: '초겨울/늦겨울', color: 'var(--season-winter)' };
+    return { label: '겨울 (동지 전후)', color: 'var(--accent-earth)' };
 }
 
 /** 우상단 비교 미니 도해 하나 (180×120 로컬 좌표). */
@@ -106,7 +107,7 @@ export default function EnergyDensity() {
     const bandL = CENTER_X - band / 2, bandR = CENTER_X + band / 2;
     const cm = Math.round(area * 100);
 
-    /* 고도각 호: 바닥 중심에서 지평선(좌) → 광선이 오는 방향 */
+    /* 고도각 호: 바닥 중심에서 지평선(좌) -> 광선이 오는 방향 */
     const ARC_R = 90;
     const arcPath = `M ${CENTER_X - ARC_R} ${GROUND_Y} A ${ARC_R} ${ARC_R} 0 0 1 ${CENTER_X - ARC_R * cos} ${GROUND_Y - ARC_R * sin}`;
     const labRad = degToRad(180 + altitude / 2);
@@ -146,7 +147,7 @@ export default function EnergyDensity() {
                     {Array.from({ length: RAY_COUNT }, (_, i) => {
                         const s = -BEAM_W / 2 + (i * BEAM_W) / (RAY_COUNT - 1);
                         const gx = CENTER_X - s / sin;
-                        const st = rayStart(gx, GROUND_Y, rad, -60, -60);
+                        const st = rayStart(gx, GROUND_Y, rad, -60, sunY - 36);
                         return (
                             <g key={i}>
                                 <line x1={st.x} y1={st.y} x2={gx} y2={GROUND_Y} stroke="#fbbf24" strokeWidth={3} opacity={0.85} />
@@ -181,36 +182,40 @@ export default function EnergyDensity() {
                 </svg>
 
                 <SimHud items={[
-                    { label: '태양 고도', value: `${disp}°`, color: '#fbbf24' },
-                    { label: '조사 면적 배율', value: `${area.toFixed(1)}배`, color: '#818cf8' },
                     { label: '에너지 밀도', value: `${Math.round(density * 100)}%`, color },
-                    { label: '계절', value: `${season.emoji} ${season.label}`, color: season.color },
+                    { label: '태양 고도', value: `${disp}°`, color: 'var(--accent-sun)' },
+                    { label: '조사 면적 배율', value: `${area.toFixed(1)}배`, color: 'var(--text-accent)' },
+                    { label: '계절', value: season.label, color: season.color },
                 ]} />
             </SimStage>
 
             <SimInspector
-                title="🔥 태양 고도와 에너지 밀도"
+                title={<><Flame size={18} /> 태양 고도와 에너지 밀도</>}
                 sections={[
                     {
                         id: 'explain', label: '설명', content: (
                             <>
-                                <p style={{ marginTop: 0, marginBottom: 12 }}>
-                                    손전등을 바닥에 똑바로 비추면 빛이 좁고 밝게 모이지만(여름), 비스듬히 비추면
-                                    같은 양의 빛이 넓게 퍼져 흐려집니다(겨울). 태양도 똑같습니다 — 빛의 양은 그대로인데
-                                    고도가 낮을수록 바닥의 더 넓은 면적에 나뉘어 담기므로 단위면적당 에너지가 줄어듭니다.
-                                </p>
+                                <div className="insp-key">
+                                    <Lightbulb size={18} />
+                                    <span>고도가 낮으면 빛이 넓게 퍼져 약해집니다.</span>
+                                </div>
+                                <StatRow label="태양 고도" value={`${disp}°`} />
                                 <StatRow label="빛이 퍼지는 정도" value={`${area.toFixed(1)}배`} />
                                 <StatRow label="바닥 에너지 밀도" value={`${Math.round(density * 100)}%`} />
                                 <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: 8 }}>🎨 바닥 색 범례</div>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: 8 }}>바닥 색 범례</div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: '#ef4444' }} />
+                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: 'var(--season-summer)' }} />
                                         <span style={{ fontSize: '0.75rem' }}>빨강 = 에너지 집중 (고도 높음)</span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: '#3b82f6' }} />
+                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: 'var(--accent-earth)' }} />
                                         <span style={{ fontSize: '0.75rem' }}>파랑 = 에너지 분산 (고도 낮음)</span>
                                     </div>
+                                </div>
+                                <div className="insp-note">
+                                    손전등을 똑바로 비추면 빛이 좁게 모입니다. 비스듬히 비추면 같은 빛이 넓게 퍼집니다.
+                                    태양도 같습니다. 빛의 양은 그대로인데 넓은 면적에 나뉘어 담기므로 단위면적당 에너지가 줄어듭니다.
                                 </div>
                             </>
                         ),
