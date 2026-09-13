@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# build logs
+*_errors.txt
+.playwright-mcp
