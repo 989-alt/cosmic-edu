@@ -89,16 +89,6 @@ function skyColor(alt: number): RGB {
     return mix(DUSK, DAY, (alt - 4) / 26);
 }
 
-const SEASONS = [
-    { months: [3, 4, 5], name: '봄', color: 'var(--season-spring)' },
-    { months: [6, 7, 8], name: '여름', color: 'var(--season-summer)' },
-    { months: [9, 10, 11], name: '가을', color: 'var(--season-autumn)' },
-    { months: [12, 1, 2], name: '겨울', color: 'var(--season-winter)' },
-];
-function seasonOf(month: number) {
-    const m = Math.round(month);
-    return SEASONS.find((s) => s.months.includes(m)) ?? SEASONS[0];
-}
 
 /* === Inspector 그래프 === */
 function AutoGraph({ t, data, label, color, yRange, unit, current }: {
@@ -255,7 +245,6 @@ export default function DailyShadowLab() {
 
     const t = sunset > sunrise ? Math.max(0, Math.min(1, (hour - sunrise) / (sunset - sunrise))) : 0;
     const isNoon = Math.abs(hour - 12) < 0.06;
-    const season = seasonOf(month);
 
     // 고도각 호: 지평선 -> 태양 시선
     const sight = Math.atan2(HORIZON_Y - sun.y, sun.x - CX);

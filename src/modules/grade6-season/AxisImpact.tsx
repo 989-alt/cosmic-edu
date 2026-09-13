@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Html, useTexture } from '@react-three/drei';
-import { useRef, useState, useMemo } from 'react';
+import { OrbitControls, Html, Line, useTexture } from '@react-three/drei';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { Globe, Lightbulb, AlertTriangle, CheckCircle2, Skull, type LucideIcon } from 'lucide-react';
 import { degToRad } from '../../utils/mathUtils';
@@ -9,23 +9,25 @@ import { useSeasonStore } from '../../store/seasonStore';
 import { SimLayout, SimStage, SimHud, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 import { getTexturePath } from '../../utils/texturePaths';
 
-const ORBIT_RADIUS = 20;
+const ORBIT_RADIUS = 16;
 const SPEEDS = [1, 2, 5, 10, 50, 100];
+const LABEL_Z: [number, number] = [5, 0];
 
 /** 궤도 위 계절 표지. 각도는 손으로 적지 않고 orbitAngle(month) 로만 얻는다. */
 const SEASON_MARKERS = [
-    { month: 3, label: '3월 춘분' },
-    { month: 6, label: '6월 하지' },
-    { month: 9, label: '9월 추분' },
-    { month: 12, label: '12월 동지' },
+    { month: 3, label: '3월 춘분', color: '#f472b6', cls: 'spring' },
+    { month: 6, label: '6월 하지', color: '#ef4444', cls: 'summer' },
+    { month: 9, label: '9월 추분', color: '#f59e0b', cls: 'autumn' },
+    { month: 12, label: '12월 동지', color: '#60a5fa', cls: 'winter' },
 ];
 
 function HeatmapEarth({ axialTilt, subsolarLat }: { axialTilt: number; subsolarLat: number }) {
     const earthRef = useRef<THREE.Group>(null);
     const tiltRad = degToRad(axialTilt);
-    const earthMap = useTexture(getTexturePath('earthDay'));
+    const [earthMap, cloudMap] = useTexture([getTexturePath('earthDay'), getTexturePath('earthClouds')]);
 
-    const texture = useMemo(() => {
+    // 햇빛이 가장 세게 닿는 위도 띠: 직사 위도 ±12°, 경계 밖은 8° 가우시안으로 페이드.
+    const band = useMemo(() => {
         const canvas = document.createElement('canvas');
         canvas.width = 256;
         canvas.height = 128;
@@ -33,21 +35,16 @@ function HeatmapEarth({ axialTilt, subsolarLat }: { axialTilt: number; subsolarL
 
         for (let y = 0; y < 128; y++) {
             const lat = 90 - (y / 128) * 180;
-            const dist = Math.abs(lat - subsolarLat);
-            const heat = Math.max(0, 1 - dist / 90);
-
-            const r = Math.round(heat * 255);
-            const g = Math.round(heat * 60);
-            const b = Math.round((1 - heat) * 200);
-
-            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.55)`;
+            const d = Math.abs(lat - subsolarLat);
+            const alpha = 0.55 * (d <= 12 ? 1 : Math.exp(-((d - 12) ** 2) / (2 * 8 * 8)));
+            if (alpha < 0.01) continue;
+            ctx.fillStyle = `rgba(251, 191, 36, ${alpha.toFixed(3)})`;
             ctx.fillRect(0, y, 256, 1);
         }
 
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.needsUpdate = true;
-        return tex;
+        return new THREE.CanvasTexture(canvas);
     }, [subsolarLat]);
+    useEffect(() => () => band.dispose(), [band]);
 
     useFrame((_, delta) => {
         if (earthRef.current) {
@@ -66,15 +63,45 @@ function HeatmapEarth({ axialTilt, subsolarLat }: { axialTilt: number; subsolarL
                 </mesh>
                 <mesh>
                     <sphereGeometry args={[3.02, 64, 64]} />
-                    <meshBasicMaterial map={texture} transparent={true} depthWrite={false} />
+                    <meshBasicMaterial map={band} transparent depthWrite={false} />
+                </mesh>
+                <mesh>
+                    <sphereGeometry args={[3.04, 48, 48]} />
+                    <meshStandardMaterial
+                        map={cloudMap} alphaMap={cloudMap}
+                        transparent opacity={0.35} depthWrite={false}
+                    />
                 </mesh>
             </group>
-            {/* Axis */}
-            <mesh>
-                <cylinderGeometry args={[0.03, 0.03, 8, 8]} />
-                <meshBasicMaterial color="#ef4444" opacity={0.6} transparent />
-            </mesh>
+            {/* 자전축: 북(빨강) / 남(파랑) */}
+            <Line points={[[0, 0, 0], [0, 4.5, 0]]} color="#ef4444" lineWidth={2} transparent opacity={0.9} />
+            <Line points={[[0, 0, 0], [0, -4.5, 0]]} color="#60a5fa" lineWidth={2} transparent opacity={0.9} />
+            <Html position={[0, 4.9, 0]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
+                <div className="stage-label muted">N</div>
+            </Html>
         </group>
+    );
+}
+
+/** 태양 -> 지구 평행 광선 3개. sunDir = 지구에서 태양을 향한 단위벡터. */
+function SunRays({ sunDir }: { sunDir: THREE.Vector3 }) {
+    const quaternion = useMemo(
+        () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), sunDir.clone().negate()),
+        [sunDir],
+    );
+
+    return (
+        <>
+            {[-1.2, 0, 1.2].map((dy) => (
+                <group key={dy} position={[0, dy, 0]} quaternion={quaternion}>
+                    <Line points={[[0, -1.25, 0], [0, 0.8, 0]]} color="#fde68a" lineWidth={1.6} transparent opacity={0.8} />
+                    <mesh position={[0, 1, 0]}>
+                        <coneGeometry args={[0.18, 0.5, 12]} />
+                        <meshBasicMaterial color="#fde68a" transparent opacity={0.8} />
+                    </mesh>
+                </group>
+            ))}
+        </>
     );
 }
 
@@ -84,7 +111,7 @@ function StarfieldBg() {
     return (
         <mesh>
             <sphereGeometry args={[200, 32, 32]} />
-            <meshBasicMaterial map={starMap} side={THREE.BackSide} />
+            <meshBasicMaterial map={starMap} color="#6b7280" side={THREE.BackSide} />
         </mesh>
     );
 }
@@ -92,12 +119,32 @@ function StarfieldBg() {
 /* 태양: 중심에 고정 */
 function SunCenter() {
     const sunMap = useTexture(getTexturePath('sun'));
+
+    const glow = useMemo(() => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d')!;
+        const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+        grad.addColorStop(0, 'rgba(253, 230, 138, 0.95)');
+        grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 256, 256);
+        return new THREE.CanvasTexture(canvas);
+    }, []);
+    useEffect(() => () => glow.dispose(), [glow]);
+
     return (
-        <mesh>
-            <sphereGeometry args={[4, 32, 32]} />
-            <meshBasicMaterial map={sunMap} />
-            <pointLight intensity={2} distance={100} color="#fbbf24" />
-        </mesh>
+        <group>
+            <mesh>
+                <sphereGeometry args={[4, 32, 32]} />
+                <meshBasicMaterial map={sunMap} />
+                <pointLight intensity={2} distance={100} color="#fbbf24" />
+            </mesh>
+            <sprite scale={[16, 16, 1]}>
+                <spriteMaterial map={glow} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+            </sprite>
+        </group>
     );
 }
 
@@ -107,22 +154,33 @@ function OrbitingScene({ axialTilt, month, subsolarLat }: { axialTilt: number; m
     const x = Math.cos(θ) * ORBIT_RADIUS;
     const z = Math.sin(θ) * ORBIT_RADIUS;
 
-    const orbitGeo = useMemo(() => {
+    const sunDir = useMemo(() => new THREE.Vector3(-x, 0, -z).normalize(), [x, z]);
+
+    const orbitPts = useMemo(() => {
         const pts: THREE.Vector3[] = [];
         for (let i = 0; i <= 128; i++) {
             const a = (i / 128) * Math.PI * 2;
             pts.push(new THREE.Vector3(Math.cos(a) * ORBIT_RADIUS, 0, Math.sin(a) * ORBIT_RADIUS));
         }
-        return new THREE.BufferGeometry().setFromPoints(pts);
+        return pts;
     }, []);
+
+    // month 는 1..12 를 주기 11 로 순환(AutoAdvance)하므로 감싼 거리로 가장 가까운 마커를 고른다.
+    const nearestMonth = useMemo(() => {
+        const dist = (m: number) => {
+            const d = Math.abs(m - month);
+            return Math.min(d, 11 - d);
+        };
+        return SEASON_MARKERS.reduce((a, b) => (dist(b.month) < dist(a.month) ? b : a)).month;
+    }, [month]);
 
     return (
         <group>
+            {/* 태양이 지구를 비추는 평행광. 기본 target 이 원점(=태양)이라 위치를 반대편에 두면 태양->지구 방향이 된다. */}
+            <directionalLight position={[-x, 0, -z]} intensity={1.6} />
+
             {/* 궤도선 */}
-            <line>
-                <bufferGeometry attach="geometry" {...orbitGeo} />
-                <lineBasicMaterial color="#3b82f6" opacity={0.2} transparent />
-            </line>
+            <Line points={orbitPts} color="#94a3b8" lineWidth={1.2} transparent opacity={0.35} />
 
             {/* 계절 마커 */}
             {SEASON_MARKERS.map((m) => {
@@ -131,33 +189,29 @@ function OrbitingScene({ axialTilt, month, subsolarLat }: { axialTilt: number; m
                 const mz = Math.sin(a) * ORBIT_RADIUS;
                 return (
                     <group key={m.month} position={[mx, 0, mz]}>
-                        <mesh>
-                            <sphereGeometry args={[0.35, 16, 16]} />
-                            <meshBasicMaterial color="#fbbf24" />
+                        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                            <circleGeometry args={[m.month === nearestMonth ? 0.6 : 0.4, 32]} />
+                            <meshBasicMaterial color={m.color} side={THREE.DoubleSide} />
                         </mesh>
-                        <Html position={[0, -1.6, 0]} center zIndexRange={[5, 0]} style={{ whiteSpace: 'nowrap' }}>
-                            <div style={{
-                                color: 'var(--text-muted)', fontSize: '0.65rem', fontFamily: 'var(--font-sans)',
-                                whiteSpace: 'nowrap', pointerEvents: 'none',
-                            }}>
-                                {m.label}
-                            </div>
-                        </Html>
+                        {Math.abs(month - m.month) > 0.7 && (
+                            <Html position={[0, -1.4, 0]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
+                                <div className={`stage-label ${m.cls}`}>{m.label}</div>
+                            </Html>
+                        )}
                     </group>
                 );
             })}
 
+            {/* 햇빛 방향 화살표: 지구 중심에서 태양 쪽 5.5 지점 */}
+            <group position={[x + sunDir.x * 5.5, 0, z + sunDir.z * 5.5]}>
+                <SunRays sunDir={sunDir} />
+            </group>
+
             {/* 지구: 궤도 위를 이동 */}
             <group position={[x, 0, z]}>
                 <HeatmapEarth axialTilt={axialTilt} subsolarLat={subsolarLat} />
-                <Html position={[0, 5, 0]} center zIndexRange={[5, 0]} style={{ whiteSpace: 'nowrap' }}>
-                    <div style={{
-                        color: 'var(--text-primary)', fontSize: '0.75rem', fontFamily: 'var(--font-sans)',
-                        background: 'var(--bg-glass)', padding: '3px 8px', borderRadius: 4,
-                        whiteSpace: 'nowrap', pointerEvents: 'none',
-                    }}>
-                        지구 (기울기 {axialTilt.toFixed(1)}°)
-                    </div>
+                <Html position={[0, 6, 0]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
+                    <div className="stage-label earth strong">지구 · 기울기 {axialTilt.toFixed(1)}°</div>
                 </Html>
             </group>
         </group>
@@ -228,7 +282,7 @@ export default function AxisImpact() {
             <SimStage>
                 <Canvas camera={{ position: [0, 32, 36], fov: 45 }} style={{ background: '#0a0e1a' }}>
                     <AutoAdvance playing={isPlaying} speed={speed} />
-                    <ambientLight intensity={0.4} />
+                    <ambientLight intensity={0.25} />
                     <StarfieldBg />
                     <SunCenter />
                     <OrbitingScene axialTilt={axialTilt} month={month} subsolarLat={subsolarLat} />
@@ -256,7 +310,7 @@ export default function AxisImpact() {
                                 <StatRow label="태양 직사 위도" value={`${subsolarLat.toFixed(1)}°`} />
                                 <StatRow label="현재 계절" value={seasonLabel} />
                                 <div className="insp-note">
-                                    지구 표면의 빨간색은 여름(에너지 집중), 파란색은 겨울(에너지 분산)입니다.
+                                    지구 위 노란 띠는 햇빛이 가장 똑바로 닿는 곳입니다. 6월엔 북쪽으로, 12월엔 남쪽으로 내려갑니다.
                                     자전축이 기울면 남중 고도가 달라지고, 그러면 에너지 밀도가 달라져 기온이 변합니다.
                                 </div>
                             </>

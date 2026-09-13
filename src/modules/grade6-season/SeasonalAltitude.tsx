@@ -20,6 +20,7 @@ import { SimLayout, SimStage, SimHud, SimDock, SimInspector, StatRow } from '../
 
 const D = 14; // 천구 반지름 (카메라 프레임 안에 호 전체가 들어오는 크기)
 const LABEL_Z = [5, 0] as [number, number];
+const WEDGE_R = 5; // 남중 고도 각도 쐐기 반지름
 
 function sunPoint(decl: number, hour: number): THREE.Vector3 {
     const H = hourAngle(hour);
@@ -49,29 +50,111 @@ function seasonOf(month: number): { name: string; Icon: LucideIcon; color: strin
     return { name: '겨울', Icon: Snowflake, color: 'var(--season-winter)' };
 }
 
+/** 위(천정) -> 아래(지평선) 세로 그라데이션. 하늘 돔 전용. */
+function makeSkyTexture(): THREE.Texture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    const g = ctx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, '#0b1226');
+    g.addColorStop(0.78, '#1e2a4a');
+    g.addColorStop(0.94, '#3b3a5e');
+    g.addColorStop(1, '#3b3a5e');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 4, 256);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
+/** 중심 -> 가장자리 방사형 그라데이션. 가장자리에서 투명해져 하늘에 녹아든다. */
+function makeGroundTexture(): THREE.Texture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    g.addColorStop(0, 'rgba(51, 65, 85, 1)');
+    g.addColorStop(0.55, 'rgba(32, 45, 68, 0.86)');
+    g.addColorStop(1, 'rgba(15, 23, 42, 0.6)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
+/** 태양 발광 스프라이트용 방사형 그라데이션. */
+function makeGlowTexture(): THREE.Texture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(253, 230, 138, 0.9)');
+    g.addColorStop(0.35, 'rgba(251, 191, 36, 0.4)');
+    g.addColorStop(1, 'rgba(245, 158, 11, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+
+/** 관측자를 감싸는 반구 하늘 (낮 장면이라 별은 없음) */
+function SkyDome() {
+    const map = useMemo(() => makeSkyTexture(), []);
+    return (
+        <mesh>
+            <sphereGeometry args={[60, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshBasicMaterial map={map} side={THREE.BackSide} depthWrite={false} />
+        </mesh>
+    );
+}
+
 function Ground() {
+    const map = useMemo(() => makeGroundTexture(), []);
     return (
         <group>
             <mesh position={[0, -0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[20, 64]} />
-                <meshStandardMaterial color="#5a4a3a" roughness={1} />
+                <circleGeometry args={[20, 96]} />
+                <meshBasicMaterial map={map} transparent depthWrite={false} />
             </mesh>
-            <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[19.7, 20, 64]} />
-                <meshBasicMaterial color="#94a3b8" opacity={0.5} transparent />
+
+            {/* 거리 눈금 동심원 */}
+            {[5, 10, 15].map((r) => (
+                <mesh key={r} position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[r - 0.04, r + 0.04, 96]} />
+                    <meshBasicMaterial color="#94a3b8" transparent opacity={0.18} depthWrite={false} />
+                </mesh>
+            ))}
+
+            {/* 남북·동서 십자선 */}
+            <Line points={[[0, 0.01, -20], [0, 0.01, 20]]} color="#94a3b8" lineWidth={1} transparent opacity={0.25} />
+            <Line points={[[-20, 0.01, 0], [20, 0.01, 0]]} color="#94a3b8" lineWidth={1} transparent opacity={0.25} />
+
+            {/* 지평선 링 */}
+            <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <ringGeometry args={[19.88, 20, 96]} />
+                <meshBasicMaterial color="#cbd5e1" opacity={0.5} transparent />
             </mesh>
 
             {/* 관측자 막대 */}
+            <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[0.6, 32]} />
+                <meshBasicMaterial color="#1e293b" />
+            </mesh>
             <mesh position={[0, 0.5, 0]}>
-                <cylinderGeometry args={[0.12, 0.12, 1, 8]} />
-                <meshStandardMaterial color="#94a3b8" />
+                <cylinderGeometry args={[0.12, 0.12, 1, 12]} />
+                <meshStandardMaterial color="#e2e8f0" />
             </mesh>
             <mesh position={[0, 1.2, 0]}>
-                <sphereGeometry args={[0.22, 8, 8]} />
-                <meshStandardMaterial color="#94a3b8" />
+                <sphereGeometry args={[0.22, 16, 16]} />
+                <meshStandardMaterial color="#e2e8f0" />
             </mesh>
-            <Html position={[0, 2, 0]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
-                <div style={{ color: '#94a3b8', fontSize: '0.65rem', whiteSpace: 'nowrap' }}>관측자 (위도 37°N)</div>
+            <Html position={[0, 2, 0]} center zIndexRange={LABEL_Z}>
+                <div className="stage-label muted">관측자 (위도 37°N)</div>
             </Html>
 
             {([
@@ -81,7 +164,7 @@ function Ground() {
                 ['북', 0, 0, 19],
             ] as const).map(([label, x, y, z]) => (
                 <Html key={label} position={[x, y + 0.6, z]} center zIndexRange={LABEL_Z}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'bold' }}>{label}</div>
+                    <div className="stage-label muted">{label}</div>
                 </Html>
             ))}
         </group>
@@ -97,24 +180,29 @@ function MeridianAngle({ decl }: { decl: number }) {
     const wedge: THREE.Vector3[] = [];
     for (let i = 0; i <= 32; i++) {
         const θ = (altRad * i) / 32;
-        wedge.push(new THREE.Vector3(0, 6 * Math.sin(θ), -6 * Math.cos(θ)));
+        wedge.push(new THREE.Vector3(0, WEDGE_R * Math.sin(θ), -WEDGE_R * Math.cos(θ)));
     }
+
+    // 쐐기 안쪽을 채우는 반투명 부채꼴. shape 로컬 (x,y) -> 월드 (0, y, −x).
+    const fan = new THREE.Shape();
+    fan.moveTo(0, 0);
+    fan.absarc(0, 0, WEDGE_R, 0, altRad, false);
+    fan.lineTo(0, 0);
 
     return (
         <group>
-            <Line points={[new THREE.Vector3(0, 0, 0), tip]} color="#fbbf24" lineWidth={1.5} />
-            <Line points={[new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -D)]} color="#94a3b8" lineWidth={1} dashed dashSize={0.5} gapSize={0.4} />
+            <mesh rotation={[0, Math.PI / 2, 0]}>
+                <shapeGeometry args={[fan]} />
+                <meshBasicMaterial color="#fbbf24" transparent opacity={0.12} side={THREE.DoubleSide} depthWrite={false} />
+            </mesh>
+            <Line points={[new THREE.Vector3(0, 0, 0), tip]} color="#fde68a" lineWidth={1} transparent opacity={0.7} dashed dashSize={0.5} gapSize={0.35} />
+            <Line points={[new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -D)]} color="#94a3b8" lineWidth={1} transparent opacity={0.35} dashed dashSize={0.5} gapSize={0.4} />
             <Line points={wedge} color="#fbbf24" lineWidth={2} />
             <Html
-                position={[0, 7 * Math.sin(altRad / 2) + 0.8, -7 * Math.cos(altRad / 2)]}
-                center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}
+                position={[0, (WEDGE_R + 1.6) * Math.sin(altRad / 2) + 0.5, -(WEDGE_R + 1.6) * Math.cos(altRad / 2)]}
+                center zIndexRange={LABEL_Z}
             >
-                <div style={{
-                    color: '#fbbf24', fontSize: '0.9rem', fontFamily: 'var(--font-mono)', fontWeight: 'bold',
-                    background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: 4, whiteSpace: 'nowrap',
-                }}>
-                    남중 고도 {alt.toFixed(1)}°
-                </div>
+                <div className="stage-label sun strong">남중 고도 {alt.toFixed(1)}°</div>
             </Html>
         </group>
     );
@@ -130,50 +218,51 @@ function SunArc({ month, animHour }: { month: number; animHour: number }) {
     const set = pts[pts.length - 1];
     const { sunrise, sunset } = sunTimes(KOREA_LAT, decl);
     const sun = animHour >= 0 ? sunPoint(decl, animHour) : sunPoint(decl, 12);
+    const glow = useMemo(() => makeGlowTexture(), []);
 
     return (
         <group>
-            <Line points={summer} color="#94a3b8" lineWidth={1} opacity={0.28} transparent />
-            <Line points={winter} color="#94a3b8" lineWidth={1} opacity={0.28} transparent />
-            <Html position={[summer[30].x, summer[30].y + 0.8, summer[30].z]} center zIndexRange={LABEL_Z}>
-                <div style={{ color: '#94a3b8', fontSize: '0.6rem', opacity: 0.7, whiteSpace: 'nowrap' }}>하지 호</div>
+            {/* 고스트 호: 하지(붉은) · 동지(푸른) */}
+            <Line points={summer} color="#ef4444" lineWidth={1.2} opacity={0.45} transparent dashed dashSize={0.6} gapSize={0.4} />
+            <Line points={winter} color="#60a5fa" lineWidth={1.2} opacity={0.45} transparent dashed dashSize={0.6} gapSize={0.4} />
+            <Html position={[summer[10].x, summer[10].y + 0.8, summer[10].z]} center zIndexRange={LABEL_Z}>
+                <div className="stage-label muted">하지 호</div>
             </Html>
-            <Html position={[winter[30].x, winter[30].y + 0.8, winter[30].z]} center zIndexRange={LABEL_Z}>
-                <div style={{ color: '#94a3b8', fontSize: '0.6rem', opacity: 0.7, whiteSpace: 'nowrap' }}>동지 호</div>
+            <Html position={[winter[10].x, winter[10].y + 0.8, winter[10].z]} center zIndexRange={LABEL_Z}>
+                <div className="stage-label muted">동지 호</div>
             </Html>
 
-            <Line points={pts} color="#fbbf24" lineWidth={3} />
+            {/* 현재 월 호 + 글로우 겹침 */}
+            <Line points={pts} color="#fbbf24" lineWidth={6} transparent opacity={0.18} />
+            <Line points={pts} color="#fbbf24" lineWidth={2} />
 
             <mesh position={sun}>
-                <sphereGeometry args={[1, 24, 24]} />
-                <meshBasicMaterial color="#fbbf24" />
+                <sphereGeometry args={[0.9, 24, 24]} />
+                <meshBasicMaterial color="#fde68a" />
             </mesh>
-            <directionalLight position={sun} intensity={1.2} color="#fbbf24" />
+            <sprite position={sun} scale={[6, 6, 1]}>
+                <spriteMaterial map={glow} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+            </sprite>
+            <directionalLight position={sun} intensity={1.0} />
 
-            <mesh position={[rise.x, rise.y, rise.z]}>
-                <sphereGeometry args={[0.4, 12, 12]} />
-                <meshBasicMaterial color="#ff6b35" />
+            {/* 일출 마커 */}
+            <mesh position={[rise.x, 0.04, rise.z]} rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[0.45, 32]} />
+                <meshBasicMaterial color="#fb923c" transparent opacity={0.9} />
             </mesh>
-            <Html position={[rise.x, rise.y + 1.2, rise.z]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    color: '#ff6b35', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
-                }}>
-                    <Sunrise size={14} /> 일출 {formatHour(sunrise)}
-                </div>
+            <Line points={[[rise.x, 0.04, rise.z], [rise.x, 1.2, rise.z]]} color="#fb923c" lineWidth={1.2} transparent opacity={0.7} />
+            <Html position={[rise.x, 1.9, rise.z]} center zIndexRange={LABEL_Z}>
+                <div className="stage-label"><Sunrise size={12} /> 일출 {formatHour(sunrise)}</div>
             </Html>
 
-            <mesh position={[set.x, set.y, set.z]}>
-                <sphereGeometry args={[0.4, 12, 12]} />
-                <meshBasicMaterial color="#c44569" />
+            {/* 일몰 마커 */}
+            <mesh position={[set.x, 0.04, set.z]} rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[0.45, 32]} />
+                <meshBasicMaterial color="#f472b6" transparent opacity={0.9} />
             </mesh>
-            <Html position={[set.x, set.y + 1.2, set.z]} center zIndexRange={LABEL_Z} style={{ whiteSpace: 'nowrap' }}>
-                <div style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    color: '#c44569', fontSize: '0.65rem', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
-                }}>
-                    <Sunset size={14} /> 일몰 {formatHour(sunset)}
-                </div>
+            <Line points={[[set.x, 0.04, set.z], [set.x, 1.2, set.z]]} color="#f472b6" lineWidth={1.2} transparent opacity={0.7} />
+            <Html position={[set.x, 1.9, set.z]} center zIndexRange={LABEL_Z}>
+                <div className="stage-label"><Sunset size={12} /> 일몰 {formatHour(sunset)}</div>
             </Html>
 
             <MeridianAngle decl={decl} />
@@ -302,7 +391,8 @@ export default function SeasonalAltitude() {
             <SimStage>
                 <SimHud items={hud} />
                 <Canvas camera={{ position: [0, 8, 26], fov: 60 }} style={{ background: '#0a0e1a' }}>
-                    <ambientLight intensity={0.4} />
+                    <ambientLight intensity={0.5} />
+                    <SkyDome />
                     <Ground />
                     <SunArc month={month} animHour={animHour} />
                     <OrbitControls
