@@ -94,6 +94,11 @@
 
 각 단계 게이트: `npm run build` green + 해당 검사 통과.
 
+### 진행 상태 (2026-09-13 완료)
+1~8단계 전부 완료·push. 검증: vitest 19건 green, `npm run check:visual` 22항목 ALL PASS(데스크톱·태블릿), `npm run build` green. lint 잔여 14건은 전부 이번 범위 밖 기존 코드(LearningObjectives·Onboarding·SolarSystem·DayNight·Revolution).
+
+추가로 발견·해결: 개발 서버 3D 가 하얗게 죽던 "THREE.WebGLRenderer: Context Lost" 의 원인은 React StrictMode + @react-three/fiber 9 의 언마운트 `forceContextLoss()` 조합이었다. StrictMode 를 제거했다(`main.tsx` 주석 참고). 프로덕션에서는 원래 재현되지 않던 문제다.
+
 ## 6. 범위 밖
 - 4학년·6-1 장면 재설계, 퀴즈·학습목표·온보딩, 성능 감지, 텍스처 체계.
 - WebGL Context Lost(재현 안 됨).
