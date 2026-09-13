@@ -229,3 +229,31 @@
   .sim-hud-chip { padding: 6px 10px; min-width: 64px; }
   .sim-hud-value { font-size: 0.95rem; }
 }
+
+/* === 무대 도식 공용 스타일 (2D SVG·3D Html 라벨 공통) === */
+/* 3D drei <Html> 라벨: 알약 형태. 색 변형은 .sun/.earth/.moon/.muted */
+.stage-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(13, 18, 32, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+.stage-label.sun { color: #fcd34d; border-color: rgba(245, 158, 11, 0.45); }
+.stage-label.earth { color: #93c5fd; border-color: rgba(59, 130, 246, 0.45); }
+.stage-label.moon { color: var(--accent-moon); }
+.stage-label.muted { color: var(--text-secondary); font-weight: 500; }
+.stage-label.strong { font-size: 0.85rem; padding: 5px 12px; }
+.stage-label.spring { color: var(--season-spring); }
+.stage-label.summer { color: var(--season-summer); }
+.stage-label.autumn { color: var(--season-autumn); }
+.stage-label.winter { color: var(--season-winter); }
