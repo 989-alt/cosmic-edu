@@ -3,12 +3,12 @@ import { OrbitControls, Html, useTexture } from '@react-three/drei';
 import { useState, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { degToRad } from '../../utils/mathUtils';
-import InfoPanel, { StatRow } from '../../components/InfoPanel';
 import { eclipseTypes, eclipseEducation } from '../../data/eclipseData';
 import { useAppStore } from '../../store/appStore';
 import { getTexturePath } from '../../utils/texturePaths';
 import MoonPhase2D from '../../components/MoonPhase2D';
 import { getMoonIlluminationForDay } from '../../data/moonPhases';
+import { SimLayout, SimStage, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
 function SunBody() {
     const sunMap = useTexture(getTexturePath('sun'));
@@ -210,38 +210,104 @@ export default function Eclipse() {
     const eclipseInfo = eclipseType ? eclipseTypes.find(e => e.id === eclipseType) : null;
 
     return (
-        <>
-            <Canvas camera={{ position: [0, 30, 40], fov: 45 }} style={{ background: '#0a0e1a' }}>
-                <ambientLight intensity={0.35} />
-                <directionalLight position={[60, 0, 0]} intensity={1.5} color="#fbbf24" />
-                <StarfieldBg />
-                <SunBody />
-                <EarthBody />
-                <MoonOrbit lunarDay={lunarDay} orbitTilt={orbitTilt} eclipseType={eclipseType} />
-                <ShadowCones />
-                <OrbitControls enablePan={false} minDistance={15} maxDistance={100} />
+        <SimLayout>
+            <SimStage>
+                <Canvas camera={{ position: [0, 30, 40], fov: 45 }} style={{ background: '#0a0e1a' }}>
+                    <ambientLight intensity={0.35} />
+                    <directionalLight position={[60, 0, 0]} intensity={1.5} color="#fbbf24" />
+                    <StarfieldBg />
+                    <SunBody />
+                    <EarthBody />
+                    <MoonOrbit lunarDay={lunarDay} orbitTilt={orbitTilt} eclipseType={eclipseType} />
+                    <ShadowCones />
+                    <OrbitControls enablePan={false} minDistance={15} maxDistance={100} />
 
-                <Html position={[60, 10, 0]} center>
-                    <div style={{ color: '#fbbf24', fontSize: '0.75rem', fontFamily: 'var(--font-sans)' }}>태양</div>
-                </Html>
-                <Html position={[0, 4, 0]} center>
-                    <div style={{ color: '#4a90d9', fontSize: '0.75rem', fontFamily: 'var(--font-sans)' }}>지구</div>
-                </Html>
-            </Canvas>
+                    <Html position={[60, 10, 0]} center>
+                        <div style={{ color: '#fbbf24', fontSize: '0.75rem', fontFamily: 'var(--font-sans)' }}>태양</div>
+                    </Html>
+                    <Html position={[0, 4, 0]} center>
+                        <div style={{ color: '#4a90d9', fontSize: '0.75rem', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>지구</div>
+                    </Html>
+                </Canvas>
+            </SimStage>
 
-            <div style={{
-                position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-                background: 'var(--bg-glass)', backdropFilter: 'blur(12px)',
-                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)',
-                padding: '12px 24px', zIndex: 50, display: 'flex', alignItems: 'center', gap: 20,
-            }}>
-                <div className="slider-container">
-                    <span className="slider-label">음력 날짜: {lunarDay}일</span>
-                    <input type="range" className="slider-input" style={{ width: 200 }}
-                        min={0} max={1} step={0.001}
-                        value={useAppStore.getState().timeValue}
-                        onChange={(e) => useAppStore.getState().setTimeValue(parseFloat(e.target.value))} />
-                </div>
+            <SimInspector
+                title={eclipseInfo ? `🌑 ${eclipseInfo.name}` : '🌑 일식·월식 시뮬레이터'}
+                sections={[
+                    {
+                        id: 'info', label: '설명', content: (
+                            <>
+                                {eclipseInfo ? (
+                                    <>
+                                        <p style={{ marginBottom: 12 }}>{eclipseInfo.description}</p>
+                                        <p style={{ marginBottom: 12, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                                            <strong>조건:</strong> {eclipseInfo.condition}
+                                        </p>
+                                        {(eclipseType === 'total-solar' || eclipseType === 'partial-solar') && (
+                                            <div style={{ background: 'rgba(255,228,181,0.1)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
+                                                <div style={{ fontSize: '0.8rem', color: '#FFE4B5', marginBottom: 4 }}>👑 코로나 현상</div>
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                                    개기일식 때 달이 태양을 완전히 가리면, 평소에 보이지 않던 태양의 <strong>코로나(대기)</strong>가
+                                                    달 주위로 하얗게 빛나며 보입니다. 태양의 코로나는 온도가 100만°C 이상이지만,
+                                                    밀도가 매우 낮아 평소에는 태양 표면의 밝은 빛에 가려져 보이지 않습니다.
+                                                </p>
+                                            </div>
+                                        )}
+                                        {(eclipseType === 'total-lunar' || eclipseType === 'partial-lunar') && (
+                                            <div style={{ background: 'rgba(139,0,0,0.1)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
+                                                <div style={{ fontSize: '0.8rem', color: '#CC4444', marginBottom: 4 }}>🔴 블러드문 현상</div>
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                                    개기월식 때 달이 붉게 보이는 이유는 지구 대기가 태양빛을 <strong>굴절</strong>시키기 때문입니다.
+                                                    파란빛은 대기에서 산란되고, <strong>붉은빛만</strong> 지구 대기를 통과하여 달에 도달합니다.
+                                                    이것은 석양이 붉은 것과 같은 원리입니다!
+                                                </p>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <p style={{ marginBottom: 12 }}>
+                                        음력 날짜 슬라이더를 1일(삭) 또는 15일(보름)으로 맞추고, 궤도 기울기를 조절해보세요.<br /><br />
+                                        <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
+                                            * 진한 검은색 원뿔은 <b>본영(완전한 그림자)</b>, 옅은 원뿔은 <b>반영(부분 그림자)</b>을 나타냅니다.
+                                        </span>
+                                    </p>
+                                )}
+                                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, marginTop: 12 }}>
+                                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+                                        <strong>💡 왜 매달 일식/월식이 일어나지 않을까?</strong><br />
+                                        {eclipseEducation.whyNotEveryMonth}
+                                    </p>
+                                </div>
+                            </>
+                        ),
+                    },
+                    {
+                        id: 'stats', label: '수치', content: (
+                            <>
+                                <StatRow label="음력 날짜" value={`${lunarDay}일`} />
+                                <StatRow label="궤도 기울기" value={`${orbitTilt.toFixed(1)}°`} />
+                                <StatRow label="식 현상" value={eclipseInfo ? eclipseInfo.name : '없음'} />
+                                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <MoonPhase2D illumination={getMoonIlluminationForDay(lunarDay)} lunarDay={lunarDay} size={56} eclipseType={eclipseType} />
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                        지구에서 본 달의 모습<br />
+                                        (밝기: {Math.round(getMoonIlluminationForDay(lunarDay) * 100)}%)
+                                    </div>
+                                </div>
+                            </>
+                        ),
+                    },
+                ]}
+            />
+
+            <SimDock
+                slider={{
+                    label: '음력 날짜', min: 0, max: 1, step: 0.001,
+                    value: useAppStore.getState().timeValue,
+                    onChange: (v) => useAppStore.getState().setTimeValue(v),
+                    display: `${lunarDay}일`,
+                }}
+            >
                 <div className="slider-container">
                     <span className="slider-label">달 궤도 기울기: {orbitTilt.toFixed(1)}°</span>
                     <input type="range" className="slider-input" style={{ width: 160 }}
@@ -249,61 +315,7 @@ export default function Eclipse() {
                         value={orbitTilt}
                         onChange={(e) => setOrbitTilt(parseFloat(e.target.value))} />
                 </div>
-            </div>
-
-            <InfoPanel title={eclipseInfo ? `🌑 ${eclipseInfo.name}` : '🌑 일식·월식 시뮬레이터'}>
-                {eclipseInfo ? (
-                    <>
-                        <p style={{ marginBottom: 12 }}>{eclipseInfo.description}</p>
-                        <p style={{ marginBottom: 12, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                            <strong>조건:</strong> {eclipseInfo.condition}
-                        </p>
-                        {(eclipseType === 'total-solar' || eclipseType === 'partial-solar') && (
-                            <div style={{ background: 'rgba(255,228,181,0.1)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
-                                <div style={{ fontSize: '0.8rem', color: '#FFE4B5', marginBottom: 4 }}>👑 코로나 현상</div>
-                                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                    개기일식 때 달이 태양을 완전히 가리면, 평소에 보이지 않던 태양의 <strong>코로나(대기)</strong>가
-                                    달 주위로 하얗게 빛나며 보입니다. 태양의 코로나는 온도가 100만°C 이상이지만,
-                                    밀도가 매우 낮아 평소에는 태양 표면의 밝은 빛에 가려져 보이지 않습니다.
-                                </p>
-                            </div>
-                        )}
-                        {(eclipseType === 'total-lunar' || eclipseType === 'partial-lunar') && (
-                            <div style={{ background: 'rgba(139,0,0,0.1)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
-                                <div style={{ fontSize: '0.8rem', color: '#CC4444', marginBottom: 4 }}>🔴 블러드문 현상</div>
-                                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                    개기월식 때 달이 붉게 보이는 이유는 지구 대기가 태양빛을 <strong>굴절</strong>시키기 때문입니다.
-                                    파란빛은 대기에서 산란되고, <strong>붉은빛만</strong> 지구 대기를 통과하여 달에 도달합니다.
-                                    이것은 석양이 붉은 것과 같은 원리입니다!
-                                </p>
-                            </div>
-                        )}
-                    </>
-                ) : (
-                    <p style={{ marginBottom: 12 }}>
-                        음력 날짜 슬라이더를 1일(삭) 또는 15일(보름)으로 맞추고, 궤도 기울기를 조절해보세요.<br /><br />
-                        <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>
-                            * 진한 검은색 원뿔은 <b>본영(완전한 그림자)</b>, 옅은 원뿔은 <b>반영(부분 그림자)</b>을 나타냅니다.
-                        </span>
-                    </p>
-                )}
-                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, marginTop: 12 }}>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                        <strong>💡 왜 매달 일식/월식이 일어나지 않을까?</strong><br />
-                        {eclipseEducation.whyNotEveryMonth}
-                    </p>
-                </div>
-                <StatRow label="음력 날짜" value={`${lunarDay}일`} />
-                <StatRow label="궤도 기울기" value={`${orbitTilt.toFixed(1)}°`} />
-                <StatRow label="식 현상" value={eclipseInfo ? eclipseInfo.name : '없음'} />
-                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <MoonPhase2D illumination={getMoonIlluminationForDay(lunarDay)} lunarDay={lunarDay} size={56} eclipseType={eclipseType} />
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        지구에서 본 달의 모습<br />
-                        (밝기: {Math.round(getMoonIlluminationForDay(lunarDay) * 100)}%)
-                    </div>
-                </div>
-            </InfoPanel>
-        </>
+            </SimDock>
+        </SimLayout>
     );
 }

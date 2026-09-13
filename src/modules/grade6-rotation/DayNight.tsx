@@ -3,9 +3,9 @@ import { OrbitControls, Html, useTexture } from '@react-three/drei';
 import { useRef, useState, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import { degToRad } from '../../utils/mathUtils';
-import InfoPanel, { StatRow } from '../../components/InfoPanel';
 import { useAppStore } from '../../store/appStore';
 import { getTexturePath } from '../../utils/texturePaths';
+import { SimLayout, SimStage, SimStageControls, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
 /* 대표 대륙과 경도 */
 const REGIONS = [
@@ -348,11 +348,11 @@ function SunTrajectoryLine({ maxAltitude, sunDist }: { maxAltitude: number; sunD
 function CompassHUD() {
     return (
         <div style={{
-            position: 'absolute', bottom: 90, right: 20, width: 80, height: 80,
+            position: 'relative', margin: '8px auto', width: 80, height: 80,
             borderRadius: '50%', border: '2px solid var(--border-subtle)',
             background: 'var(--bg-glass)', backdropFilter: 'blur(10px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.65rem', color: 'var(--text-muted)', zIndex: 30,
+            fontSize: '0.65rem', color: 'var(--text-muted)',
         }}>
             <div style={{ position: 'absolute', top: 4, fontWeight: 700, color: '#ef4444' }}>N</div>
             <div style={{ position: 'absolute', bottom: 4 }}>S</div>
@@ -400,41 +400,42 @@ export default function DayNight() {
     };
 
     return (
-        <>
-            {viewMode === 'space' ? (
-                <Canvas
-                    camera={{ position: [0, 10, 15], fov: 50 }}
-                    style={{ background: '#0a0e1a' }}
-                >
-                    <AutoAdvance />
-                    <SunLight />
-                    <StarfieldBg />
-                    <EarthWithTerminator rotationAngle={rotationAngle} />
-                    <SunIndicator />
-                    <OrbitControls enablePan={false} minDistance={5} maxDistance={50} />
-                </Canvas>
-            ) : (
-                <Canvas
-                    camera={{ position: [0, 3, -8], fov: 75 }}
-                    style={{ background: '#0a0e1a' }}
-                >
-                    <AutoAdvance />
-                    <ObserverScene rotationAngle={rotationAngle} />
-                    {/* 초기에 동쪽(+x)을 바라보도록 target 설정 */}
-                    <ObserverCameraController />
-                    <OrbitControls
-                        enablePan={false}
-                        minDistance={0.5}
-                        maxDistance={10}
-                        enableZoom={true}
-                        minPolarAngle={Math.PI * 0.05}
-                        maxPolarAngle={Math.PI * 0.65}
-                        target={[20, 10, 0]}
-                    />
-                </Canvas>
-            )}
+        <SimLayout>
+            <SimStage>
+                {viewMode === 'space' ? (
+                    <Canvas
+                        camera={{ position: [0, 10, 15], fov: 50 }}
+                        style={{ background: '#0a0e1a' }}
+                    >
+                        <AutoAdvance />
+                        <SunLight />
+                        <StarfieldBg />
+                        <EarthWithTerminator rotationAngle={rotationAngle} />
+                        <SunIndicator />
+                        <OrbitControls enablePan={false} minDistance={5} maxDistance={50} />
+                    </Canvas>
+                ) : (
+                    <Canvas
+                        camera={{ position: [0, 3, -8], fov: 75 }}
+                        style={{ background: '#0a0e1a' }}
+                    >
+                        <AutoAdvance />
+                        <ObserverScene rotationAngle={rotationAngle} />
+                        {/* 초기에 동쪽(+x)을 바라보도록 target 설정 */}
+                        <ObserverCameraController />
+                        <OrbitControls
+                            enablePan={false}
+                            minDistance={0.5}
+                            maxDistance={10}
+                            enableZoom={true}
+                            minPolarAngle={Math.PI * 0.05}
+                            maxPolarAngle={Math.PI * 0.65}
+                            target={[20, 10, 0]}
+                        />
+                    </Canvas>
+                )}
 
-            <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 40 }}>
+            <SimStageControls>
                 <div className="scale-toggle">
                     <button className={`scale-btn ${viewMode === 'space' ? 'active' : ''}`} onClick={() => setViewMode('space')}>
                         🛸 우주 시점
@@ -443,74 +444,77 @@ export default function DayNight() {
                         👤 관측자 시점 (지표면)
                     </button>
                 </div>
-            </div>
+            </SimStageControls>
+            </SimStage>
 
-            <InfoPanel title="🌓 자전과 일주 운동">
-                <p style={{ marginBottom: 12 }}>
-                    지구는 하루에 한 바퀴 자전합니다. 자전 때문에 태양과 별이 동쪽에서 떠서 서쪽으로 지는 것처럼 보입니다.
-                </p>
-                <StatRow label="현재 시각 (약)" value={`${hourOfDay}:00`} />
-                <StatRow label="자전 각도" value={`${Math.round(timeValue * 360)}°`} />
-                <StatRow label="자전축 기울기" value="23.44°" />
 
-                {/* 대륙별 낮/밤 상태 */}
-                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fbbf24', marginBottom: 6 }}>
-                        🌍 대륙별 낮/밤 상태
-                    </div>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.65rem', color: '#fbbf24', marginBottom: 4 }}>☀️ 낮 지역</div>
-                            {dayRegions.map(r => (
-                                <div key={r} style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{r}</div>
-                            ))}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.65rem', color: '#818cf8', marginBottom: 4 }}>🌙 밤 지역</div>
-                            {nightRegions.map(r => (
-                                <div key={r} style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{r}</div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
+            <SimInspector
+                title="🌓 자전과 일주 운동"
+                sections={[
+                    {
+                        id: 'info', label: '정보', content: (
+                            <>
+                                <p style={{ marginBottom: 12 }}>
+                                    지구는 하루에 한 바퀴 자전합니다. 자전 때문에 태양과 별이 동쪽에서 떠서 서쪽으로 지는 것처럼 보입니다.
+                                </p>
+                                <StatRow label="현재 시각 (약)" value={`${hourOfDay}:00`} />
+                                <StatRow label="자전 각도" value={`${Math.round(timeValue * 360)}°`} />
+                                <StatRow label="자전축 기울기" value="23.44°" />
 
-                {viewMode === 'observer' && (
-                    <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                            💡 <strong>관측자 시점:</strong> 지표면에서 하늘을 바라보고 있습니다.
-                            태양이 동쪽에서 떠서 남쪽을 지나 서쪽으로 지는 모습을 관찰하세요.
-                            마우스로 시점을 자유롭게 움직여보세요!
-                        </p>
-                    </div>
-                )}
-            </InfoPanel>
+                                {viewMode === 'observer' && (
+                                    <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                                            💡 <strong>관측자 시점:</strong> 지표면에서 하늘을 바라보고 있습니다.
+                                            태양이 동쪽에서 떠서 남쪽을 지나 서쪽으로 지는 모습을 관찰하세요.
+                                            마우스로 시점을 자유롭게 움직여보세요!
+                                        </p>
+                                    </div>
+                                )}
+                            </>
+                        ),
+                    },
+                    {
+                        id: 'regions', label: '지역', content: (
+                            <>
+                                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fbbf24', marginBottom: 6 }}>
+                                    🌍 대륙별 낮/밤 상태
+                                </div>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.65rem', color: '#fbbf24', marginBottom: 4 }}>☀️ 낮 지역</div>
+                                        {dayRegions.map(r => (
+                                            <div key={r} style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{r}</div>
+                                        ))}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.65rem', color: '#818cf8', marginBottom: 4 }}>🌙 밤 지역</div>
+                                        {nightRegions.map(r => (
+                                            <div key={r} style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>{r}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                                {viewMode === 'observer' && <CompassHUD />}
+                            </>
+                        ),
+                    },
+                ]}
+            />
 
-            {viewMode === 'observer' && <CompassHUD />}
-
-            <div style={{
-                position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-                background: 'var(--bg-glass)', backdropFilter: 'blur(12px)',
-                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)',
-                padding: '12px 24px', zIndex: 50, display: 'flex', alignItems: 'center', gap: 16,
-            }}>
+            <SimDock
+                play={{ playing: isPlaying, onToggle: () => useAppStore.getState().togglePlaying() }}
+                speed={{ value: speed, onCycle: () => useAppStore.getState().cycleSpeed() }}
+                slider={{
+                    label: '시각', min: 0, max: 1, step: 0.001, value: timeValue,
+                    onChange: setTimeValue, display: `${hourOfDay}:00`,
+                }}
+            >
                 <button className="control-btn" style={{ width: 44 }} onClick={() => setTimeValue((p: number) => (p - 1 / 24 < 0 ? p - 1 / 24 + 1 : p - 1 / 24))} title="-1시간">
                     <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>-1H</span>
-                </button>
-                <button className={`control-btn ${isPlaying ? 'active' : ''}`} onClick={() => useAppStore.getState().togglePlaying()}>
-                    {isPlaying ? '⏸' : '▶'}
-                </button>
-                <button className="control-btn" onClick={() => useAppStore.getState().cycleSpeed()}>
-                    <span className="speed-label">×{speed}</span>
                 </button>
                 <button className="control-btn" style={{ width: 44 }} onClick={() => setTimeValue((p: number) => (p + 1 / 24 > 1 ? p + 1 / 24 - 1 : p + 1 / 24))} title="+1시간">
                     <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>+1H</span>
                 </button>
-                <div className="slider-container" style={{ marginLeft: 8 }}>
-                    <span className="slider-label">시각: {hourOfDay}:00</span>
-                    <input type="range" className="slider-input" style={{ width: 160 }} min={0} max={1} step={0.001}
-                        value={timeValue} onChange={(e) => setTimeValue(parseFloat(e.target.value))} />
-                </div>
-            </div>
-        </>
+            </SimDock>
+        </SimLayout>
     );
 }

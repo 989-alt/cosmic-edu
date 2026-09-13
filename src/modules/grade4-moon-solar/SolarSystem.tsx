@@ -4,9 +4,9 @@ import { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { planets, SUN_DIAMETER } from '../../data/planets';
 import { ScaleMode, getSunRadius, getPlanetRadius, getPlanetDistance } from '../../utils/scaleHelper';
-import InfoPanel, { StatRow } from '../../components/InfoPanel';
 import { useAppStore } from '../../store/appStore';
 import { getTexturePath, getPlanetTexturePath } from '../../utils/texturePaths';
+import { SimLayout, SimStage, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
 function SunMesh({ mode }: { mode: ScaleMode }) {
     const radius = getSunRadius(mode);
@@ -153,7 +153,7 @@ function VolumeBar({ mode }: { mode: ScaleMode }) {
     const EARTH_DIAMETER = 12742;
 
     return (
-        <div className="volume-bar-container">
+        <div className="volume-bar-container" style={{ position: 'static', left: 'auto', right: 'auto', bottom: 'auto' }}>
             <div className="volume-bar-title">🪐 행성 크기 비교 (지구 = 1 기준)</div>
             <div className="volume-bar-list">
                 {planets.map((p) => {
@@ -242,97 +242,88 @@ export default function SolarSystem() {
     }, [mode, time]);
 
     return (
-        <>
-            <Canvas
-                camera={{ position: [0, 80, 120], fov: 50 }}
-                style={{ background: '#0a0e1a' }}
-            >
-                <Scene
-                    mode={mode}
-                    time={time}
-                    onHover={setHoveredPlanet}
-                    onClick={handleSelectPlanet}
-                />
-                <OrbitControls
-                    ref={controlsRef}
-                    enablePan={spaceHeld}
-                    maxDistance={400}
-                    minDistance={5}
-                    mouseButtons={{
-                        LEFT: spaceHeld ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
-                        MIDDLE: THREE.MOUSE.DOLLY,
-                        RIGHT: THREE.MOUSE.PAN,
-                    }}
-                />
-            </Canvas>
+        <SimLayout>
+            <SimStage>
+                <Canvas
+                    camera={{ position: [0, 80, 120], fov: 50 }}
+                    style={{ background: '#0a0e1a' }}
+                >
+                    <Scene
+                        mode={mode}
+                        time={time}
+                        onHover={setHoveredPlanet}
+                        onClick={handleSelectPlanet}
+                    />
+                    <OrbitControls
+                        ref={controlsRef}
+                        enablePan={spaceHeld}
+                        maxDistance={400}
+                        minDistance={5}
+                        mouseButtons={{
+                            LEFT: spaceHeld ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
+                            MIDDLE: THREE.MOUSE.DOLLY,
+                            RIGHT: THREE.MOUSE.PAN,
+                        }}
+                    />
+                </Canvas>
+            </SimStage>
 
-            <div style={{
-                position: 'absolute', top: 16, left: 16, zIndex: 40,
-            }}>
+            <SimDock
+                presets={planets.map(p => ({ label: p.nameKo, onClick: () => handleSelectPlanet(p), active: selectedPlanet?.id === p.id }))}
+            >
                 <div className="scale-toggle">
-                    <button className={`scale-btn ${mode === 'learning' ? 'active' : ''}`} onClick={() => setMode('learning')}>
-                        🎓 학습용
-                    </button>
-                    <button className={`scale-btn ${mode === 'realSize' ? 'active' : ''}`} onClick={() => setMode('realSize')}>
-                        📏 크기 비교
-                    </button>
-                    <button className={`scale-btn ${mode === 'realDistance' ? 'active' : ''}`} onClick={() => setMode('realDistance')}>
-                        🌌 거리+크기
-                    </button>
+                    <button className={`scale-btn ${mode === 'learning' ? 'active' : ''}`} onClick={() => setMode('learning')}>🎓 학습용</button>
+                    <button className={`scale-btn ${mode === 'realSize' ? 'active' : ''}`} onClick={() => setMode('realSize')}>📏 크기 비교</button>
+                    <button className={`scale-btn ${mode === 'realDistance' ? 'active' : ''}`} onClick={() => setMode('realDistance')}>🌌 거리+크기</button>
                 </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 6, padding: '0 4px' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flex: 1 }}>
                     {mode === 'learning' && '행성 크기와 거리를 학습용으로 과장'}
                     {mode === 'realSize' && '행성 크기는 실제 비율, 거리는 압축'}
                     {mode === 'realDistance' && '크기 실제 비율 + 거리 대수 스케일'}
+                    <br />💡 행성 버튼으로 바로 관찰 · 스페이스바+드래그로 맵 이동
                 </div>
-            </div>
+            </SimDock>
 
-            <div style={{
-                position: 'absolute', top: 90, left: 16, zIndex: 40, display: 'flex', flexDirection: 'column', gap: 6
-            }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>🔭 행성 바로 관찰하기</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxWidth: 280 }}>
-                    {planets.map(p => (
-                        <button
-                            key={p.id}
-                            onClick={() => handleSelectPlanet(p)}
-                            style={{
-                                background: selectedPlanet?.id === p.id ? 'var(--accent-primary)' : 'var(--bg-card)',
-                                border: '1px solid', borderColor: selectedPlanet?.id === p.id ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                                color: 'white', padding: '6px 10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.75rem',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            {p.nameKo}
-                        </button>
-                    ))}
-                </div>
-                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                    💡 스페이스바+드래그로 맵 이동 가능
-                </div>
-            </div>
 
-            {displayPlanet && (
-                <InfoPanel title={`${displayPlanet.nameKo} (${displayPlanet.name})`}>
-                    <p style={{ marginBottom: 12 }}>{displayPlanet.description}</p>
-                    <StatRow label="지름" value={`${displayPlanet.diameter.toLocaleString()} km`} />
-                    <StatRow label="질량" value={displayPlanet.mass} />
-                    <StatRow label="자전 주기" value={`${Math.abs(displayPlanet.rotationPeriod).toFixed(1)}시간`} />
-                    <StatRow label="공전 주기" value={`${displayPlanet.orbitalPeriod.toLocaleString()}일`} />
-                    <StatRow label="태양 거리" value={`${displayPlanet.distanceAU} AU`} />
-                    <StatRow label="자전축 기울기" value={`${displayPlanet.axialTilt}°`} />
-                    <StatRow label="고리" value={displayPlanet.hasRing ? '있음' : '없음'} />
-                    <StatRow label="지구 대비 크기" value={`${(displayPlanet.diameter / 12742).toFixed(2)}배`} />
-                    <button
-                        onClick={() => setSelectedPlanet(null)}
-                        style={{ marginTop: 12, padding: '4px 8px', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer' }}
-                    >
-                        닫기
-                    </button>
-                </InfoPanel>
-            )}
-
-            <VolumeBar mode={mode} />
-        </>
+            <SimInspector
+                title={displayPlanet ? `${displayPlanet.nameKo} (${displayPlanet.name})` : '🪐 태양계 샌드박스'}
+                sections={[
+                    {
+                        id: 'info', label: '정보', content: displayPlanet ? (
+                            <>
+                                <p style={{ marginBottom: 12 }}>{displayPlanet.description}</p>
+                                <StatRow label="지름" value={`${displayPlanet.diameter.toLocaleString()} km`} />
+                                <StatRow label="질량" value={displayPlanet.mass} />
+                                <StatRow label="자전 주기" value={`${Math.abs(displayPlanet.rotationPeriod).toFixed(1)}시간`} />
+                                <StatRow label="공전 주기" value={`${displayPlanet.orbitalPeriod.toLocaleString()}일`} />
+                                <StatRow label="태양 거리" value={`${displayPlanet.distanceAU} AU`} />
+                                <StatRow label="자전축 기울기" value={`${displayPlanet.axialTilt}°`} />
+                                <StatRow label="고리" value={displayPlanet.hasRing ? '있음' : '없음'} />
+                                <StatRow label="지구 대비 크기" value={`${(displayPlanet.diameter / 12742).toFixed(2)}배`} />
+                                {selectedPlanet && (
+                                    <button
+                                        onClick={() => setSelectedPlanet(null)}
+                                        style={{ marginTop: 12, padding: '4px 8px', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer' }}
+                                    >
+                                        닫기
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <p>행성을 클릭하거나 마우스를 올리면 정보가 표시됩니다.</p>
+                        ),
+                    },
+                    {
+                        id: 'compare', label: '크기 비교', content: mode === 'learning' ? (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                크기 비교 또는 거리+크기 모드에서 확인할 수 있습니다.
+                            </p>
+                        ) : (
+                            <VolumeBar mode={mode} />
+                        ),
+                    },
+                ]}
+            />
+        </SimLayout>
     );
 }

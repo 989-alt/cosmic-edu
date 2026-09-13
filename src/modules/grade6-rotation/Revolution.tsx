@@ -3,10 +3,10 @@ import { OrbitControls, Html, useTexture } from '@react-three/drei';
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { degToRad } from '../../utils/mathUtils';
-import InfoPanel, { StatRow } from '../../components/InfoPanel';
 import { useAppStore } from '../../store/appStore';
 import { getTexturePath } from '../../utils/texturePaths';
 import { monthlyData } from '../../data/shadowLabData';
+import { SimLayout, SimStage, SimStageControls, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
 const SEASONS = [
     { name: '춘분 (3월)', angle: 0, date: '3/21', month: 3 },
@@ -209,118 +209,114 @@ export default function Revolution() {
     };
 
     return (
-        <>
-            <Canvas camera={{ position: [0, 40, 40], fov: 50 }} style={{ background: '#0a0e1a' }}>
-                <AutoAdvance />
-                <ambientLight intensity={0.4} />
-                <StarfieldBg />
-                <SunCenter />
-                <OrbitingEarth orbitalAngle={orbitalAngle} tiltTowardSun={details.tiltTowardSun} onClick={handleEarthClick} />
-                <OrbitControls
-                    ref={controlsRef}
-                    enablePan={spaceHeld}
-                    maxDistance={80}
-                    minDistance={10}
-                    mouseButtons={{
-                        LEFT: spaceHeld ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
-                        MIDDLE: THREE.MOUSE.DOLLY,
-                        RIGHT: THREE.MOUSE.PAN,
-                    }}
-                />
-            </Canvas>
+        <SimLayout>
+            <SimStage>
+                <Canvas camera={{ position: [0, 40, 40], fov: 50 }} style={{ background: '#0a0e1a' }}>
+                    <AutoAdvance />
+                    <ambientLight intensity={0.4} />
+                    <StarfieldBg />
+                    <SunCenter />
+                    <OrbitingEarth orbitalAngle={orbitalAngle} tiltTowardSun={details.tiltTowardSun} onClick={handleEarthClick} />
+                    <OrbitControls
+                        ref={controlsRef}
+                        enablePan={spaceHeld}
+                        maxDistance={80}
+                        minDistance={10}
+                        mouseButtons={{
+                            LEFT: spaceHeld ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE,
+                            MIDDLE: THREE.MOUSE.DOLLY,
+                            RIGHT: THREE.MOUSE.PAN,
+                        }}
+                    />
+                </Canvas>
 
-            <div style={{
-                position: 'absolute', top: 16, left: 16, zIndex: 40,
-                display: 'flex', gap: 6,
-            }}>
-                {SEASONS.map((s, i) => (
-                    <button key={s.name} className="sub-module-btn"
-                        style={{ fontSize: '0.75rem' }}
-                        onClick={() => setTimeValue(i * 0.25)}>
-                        {s.date} {s.name.split(' ')[0]}
-                    </button>
-                ))}
-            </div>
-
-            <div style={{
-                position: 'absolute', top: 90, left: 16, zIndex: 40,
-            }}>
+            <SimStageControls>
                 <button className="sub-module-btn" onClick={handleEarthClick} style={{ fontSize: '0.75rem', background: 'var(--accent-primary)', color: 'white' }}>
                     🌍 지구 추적
                 </button>
-                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 8 }}>
+                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
                     💡 스페이스바+드래그로 맵 이동
                 </div>
-            </div>
+            </SimStageControls>
+            </SimStage>
 
-            <InfoPanel title={`${details.emoji} ${details.month}월 — ${details.seasonName}`}>
-                {/* 인과관계 시각화 */}
-                <div style={{
-                    background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 12,
-                    fontSize: '0.75rem', lineHeight: 1.8,
-                }}>
-                    <div style={{ color: '#fbbf24', fontWeight: 'bold', marginBottom: 8 }}>🔗 계절 변화의 인과관계</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <div style={{ color: 'var(--text-primary)' }}>
-                            1️⃣ 자전축이 태양 쪽으로 <span style={{ color: details.tiltTowardSun >= 0 ? '#ef4444' : '#3b82f6', fontWeight: 'bold' }}>
-                                {details.tiltTowardSun >= 0 ? `기울어짐 (+${details.tiltTowardSun.toFixed(1)}°)` : `반대쪽으로 기울어짐 (${details.tiltTowardSun.toFixed(1)}°)`}
-                            </span>
-                        </div>
-                        <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>↓</div>
-                        <div style={{ color: 'var(--text-primary)' }}>
-                            2️⃣ 남중 고도 = <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{details.meridianAltitude}°</span>
-                            {details.meridianAltitude >= 60 ? ' (높음 → 빛이 집중)' : details.meridianAltitude <= 40 ? ' (낮음 → 빛이 분산)' : ' (중간)'}
-                        </div>
-                        <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>↓</div>
-                        <div style={{ color: 'var(--text-primary)' }}>
-                            3️⃣ 낮의 길이 = <span style={{ color: '#818cf8', fontWeight: 'bold' }}>{details.dayLength}시간</span>
-                            {details.dayLength >= 13 ? ' (길다 → 열 흡수↑)' : details.dayLength <= 11 ? ' (짧다 → 열 흡수↓)' : ''}
-                        </div>
-                        <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>↓</div>
-                        <div style={{ color: 'var(--text-primary)' }}>
-                            4️⃣ 평균 기온 = <span style={{
-                                color: details.avgTemperature >= 20 ? '#ef4444' : details.avgTemperature <= 5 ? '#3b82f6' : '#fbbf24',
-                                fontWeight: 'bold', fontSize: '1rem'
-                            }}>{details.avgTemperature}°C</span>
-                        </div>
-                    </div>
-                </div>
 
-                <StatRow label="경과 일수" value={`${details.dayOfYear}일 / 365일`} />
-                <StatRow label="현재 계절" value={`${details.emoji} ${details.seasonName}`} />
-                <StatRow label="공전 각도" value={`${Math.round(timeValue * 360)}°`} />
-                <StatRow label="자전축 기울기" value="23.44°" />
-                <StatRow label="공전 주기" value="365.25일" />
+            <SimInspector
+                title={`${details.emoji} ${details.month}월 — ${details.seasonName}`}
+                sections={[
+                    {
+                        id: 'info', label: '설명', content: (
+                            <>
+                                {/* 인과관계 시각화 */}
+                                <div style={{
+                                    background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, marginBottom: 12,
+                                    fontSize: '0.75rem', lineHeight: 1.8,
+                                }}>
+                                    <div style={{ color: '#fbbf24', fontWeight: 'bold', marginBottom: 8 }}>🔗 계절 변화의 인과관계</div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        <div style={{ color: 'var(--text-primary)' }}>
+                                            1️⃣ 자전축이 태양 쪽으로 <span style={{ color: details.tiltTowardSun >= 0 ? '#ef4444' : '#3b82f6', fontWeight: 'bold' }}>
+                                                {details.tiltTowardSun >= 0 ? `기울어짐 (+${details.tiltTowardSun.toFixed(1)}°)` : `반대쪽으로 기울어짐 (${details.tiltTowardSun.toFixed(1)}°)`}
+                                            </span>
+                                        </div>
+                                        <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>↓</div>
+                                        <div style={{ color: 'var(--text-primary)' }}>
+                                            2️⃣ 남중 고도 = <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{details.meridianAltitude}°</span>
+                                            {details.meridianAltitude >= 60 ? ' (높음 → 빛이 집중)' : details.meridianAltitude <= 40 ? ' (낮음 → 빛이 분산)' : ' (중간)'}
+                                        </div>
+                                        <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>↓</div>
+                                        <div style={{ color: 'var(--text-primary)' }}>
+                                            3️⃣ 낮의 길이 = <span style={{ color: '#818cf8', fontWeight: 'bold' }}>{details.dayLength}시간</span>
+                                            {details.dayLength >= 13 ? ' (길다 → 열 흡수↑)' : details.dayLength <= 11 ? ' (짧다 → 열 흡수↓)' : ''}
+                                        </div>
+                                        <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>↓</div>
+                                        <div style={{ color: 'var(--text-primary)' }}>
+                                            4️⃣ 평균 기온 = <span style={{
+                                                color: details.avgTemperature >= 20 ? '#ef4444' : details.avgTemperature <= 5 ? '#3b82f6' : '#fbbf24',
+                                                fontWeight: 'bold', fontSize: '1rem'
+                                            }}>{details.avgTemperature}°C</span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                        <strong>💡 핵심 요약:</strong> 계절이 변하는 이유는{' '}
-                        <strong style={{ color: '#ef4444' }}>지구의 자전축이 23.44° 기울어져 있기 때문</strong>입니다.
-                        자전축의 방향은 공전 중 변하지 않으므로, 공전 위치에 따라 태양빛을 받는 각도가 달라집니다.
-                        여름에는 남중 고도가 높아 좁은 면적에 빛이 집중되고 낮이 길어 기온이 올라갑니다.
-                        겨울에는 그 반대입니다.
-                    </p>
-                </div>
-            </InfoPanel>
+                                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+                                        <strong>💡 핵심 요약:</strong> 계절이 변하는 이유는{' '}
+                                        <strong style={{ color: '#ef4444' }}>지구의 자전축이 23.44° 기울어져 있기 때문</strong>입니다.
+                                        자전축의 방향은 공전 중 변하지 않으므로, 공전 위치에 따라 태양빛을 받는 각도가 달라집니다.
+                                        여름에는 남중 고도가 높아 좁은 면적에 빛이 집중되고 낮이 길어 기온이 올라갑니다.
+                                        겨울에는 그 반대입니다.
+                                    </p>
+                                </div>
+                            </>
+                        ),
+                    },
+                    {
+                        id: 'stats', label: '수치', content: (
+                            <>
+                                <StatRow label="경과 일수" value={`${details.dayOfYear}일 / 365일`} />
+                                <StatRow label="현재 계절" value={`${details.emoji} ${details.seasonName}`} />
+                                <StatRow label="공전 각도" value={`${Math.round(timeValue * 360)}°`} />
+                                <StatRow label="자전축 기울기" value="23.44°" />
+                                <StatRow label="공전 주기" value="365.25일" />
+                            </>
+                        ),
+                    },
+                ]}
+            />
 
-            <div style={{
-                position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-                background: 'var(--bg-glass)', backdropFilter: 'blur(12px)',
-                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)',
-                padding: '12px 24px', zIndex: 50, display: 'flex', alignItems: 'center', gap: 16,
-            }}>
-                <button className={`control-btn ${isPlaying ? 'active' : ''}`} onClick={() => useAppStore.getState().togglePlaying()}>
-                    {isPlaying ? '⏸' : '▶'}
-                </button>
-                <button className="control-btn" onClick={() => useAppStore.getState().cycleSpeed()}>
-                    <span className="speed-label">×{speed}</span>
-                </button>
-                <div className="slider-container">
-                    <span className="slider-label">공전 위치</span>
-                    <input type="range" className="slider-input" style={{ width: 200 }} min={0} max={1} step={0.001}
-                        value={timeValue} onChange={(e) => setTimeValue(parseFloat(e.target.value))} />
-                </div>
-            </div>
-        </>
+            <SimDock
+                play={{ playing: isPlaying, onToggle: () => useAppStore.getState().togglePlaying() }}
+                speed={{ value: speed, onCycle: () => useAppStore.getState().cycleSpeed() }}
+                slider={{
+                    label: '공전 위치', min: 0, max: 1, step: 0.001, value: timeValue,
+                    onChange: setTimeValue,
+                }}
+                presets={SEASONS.map((s, i) => ({
+                    label: `${s.date} ${s.name.split(' ')[0]}`,
+                    onClick: () => setTimeValue(i * 0.25),
+                }))}
+            />
+        </SimLayout>
     );
 }

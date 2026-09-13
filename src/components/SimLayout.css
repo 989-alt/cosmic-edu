@@ -187,7 +187,6 @@
   .sim-inspector { max-height: 42vh; }
   .sim-inspector.closed { max-height: 48px; }
   /* 좌하단 고정 버튼(퀴즈·도움말)은 Stage 우상단으로 올린다 */
-  .quiz-trigger-btn { bottom: auto !important; left: auto !important; top: 118px; right: 68px; }
   .control-hints { bottom: auto !important; left: auto !important; top: 118px; right: 12px; }
   .control-hints-content { top: 52px; bottom: auto; right: 0; left: auto; }
   .sim-dock { padding: 8px 12px 10px; }

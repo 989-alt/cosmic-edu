@@ -56,7 +56,7 @@ export interface DockPreset { label: string; onClick: () => void; active?: boole
 export function SimDock({ play, speed, slider, presets, children }: {
     play?: { playing: boolean; onToggle: () => void };
     speed?: { value: number; onCycle: () => void };
-    slider: DockSlider;
+    slider?: DockSlider;
     presets?: DockPreset[];
     children?: ReactNode;
 }) {
@@ -81,7 +81,7 @@ export function SimDock({ play, speed, slider, presets, children }: {
                         <span className="speed-label">×{speed.value}</span>
                     </button>
                 )}
-                <div className="sim-dock-slider">
+                {slider && <div className="sim-dock-slider">
                     <div className="sim-dock-slider-head">
                         <span className="slider-label">{slider.label}</span>
                         {slider.display && <span className="sim-dock-display">{slider.display}</span>}
@@ -95,7 +95,7 @@ export function SimDock({ play, speed, slider, presets, children }: {
                             {slider.ticks.map((t, i) => <span key={i}>{t}</span>)}
                         </div>
                     )}
-                </div>
+                </div>}
                 {children}
             </div>
         </div>
