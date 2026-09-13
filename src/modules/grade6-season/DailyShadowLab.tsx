@@ -1,184 +1,114 @@
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Html, useTexture } from '@react-three/drei';
-import { useState, useRef, useEffect, useMemo } from 'react';
-import * as THREE from 'three';
-import { degToRad, shadowLength as calcShadow } from '../../utils/mathUtils';
-import { dailyShadowData } from '../../data/shadowLabData';
-import InfoPanel, { StatRow } from '../../components/InfoPanel';
-import { getTexturePath } from '../../utils/texturePaths';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSeasonStore } from '../../store/seasonStore';
+import {
+    KOREA_LAT,
+    declination,
+    formatHour,
+    hourAngle,
+    meridianAltitude,
+    shadowLength,
+    skyProjection,
+    sunAltitude,
+    sunTimes,
+} from '../../utils/solar';
+import { SimLayout, SimStage, SimHud, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
-/* 보간 함수: 시간 슬라이더 값(0~1)으로 데이터 사이 보간 */
-function interpolateData(t: number) {
-    const idx = t * (dailyShadowData.length - 1);
-    const lo = Math.floor(idx);
-    const hi = Math.min(lo + 1, dailyShadowData.length - 1);
-    const frac = idx - lo;
+/**
+ * 하루 태양 고도 — 관측자가 남쪽을 보고 선 2D SVG 측면 도해.
+ * 계산은 전부 solar.ts. 이 파일은 값을 좌표로 옮겨 그리기만 한다.
+ */
 
-    const dLo = dailyShadowData[lo];
-    const dHi = dailyShadowData[hi];
+const HORIZON_Y = 440;
+const CX = 500;
+const ARC_RX = 420;
+const ARC_RY = 400;
+const STICK_PX = 120; // 막대 1 m = 120 px. 그림자도 같은 환산.
+const SHADOW_MAX_PX = 460; // 지평선 폭 클램프
+const ALT_ARC_R = 110;
+const SAMPLES = 60;
 
-    return {
-        altitude: dLo.altitude + (dHi.altitude - dLo.altitude) * frac,
-        shadowLength: dLo.shadowLength + (dHi.shadowLength - dLo.shadowLength) * frac,
-        temperature: dLo.temperature + (dHi.temperature - dLo.temperature) * frac,
-        hour: dLo.hour + (dHi.hour - dLo.hour) * frac,
-    };
+interface Pt { x: number; y: number; altitude: number }
+
+function project(month: number, hour: number): Pt {
+    const p = skyProjection(KOREA_LAT, declination(month), hourAngle(hour));
+    return { x: CX + p.x * ARC_RX, y: HORIZON_Y - p.y * ARC_RY, altitude: p.altitude };
 }
 
-function formatTime(hour: number): string {
-    const h = Math.floor(hour);
-    const m = Math.round((hour - h) * 60);
-    return `${h}:${m.toString().padStart(2, '0')}`;
+/** 일출~일몰 호를 SVG path 로. */
+function arcPath(month: number): string {
+    const { sunrise, sunset } = sunTimes(KOREA_LAT, declination(month));
+    let d = '';
+    for (let i = 0; i < SAMPLES; i++) {
+        const h = sunrise + ((sunset - sunrise) * i) / (SAMPLES - 1);
+        const p = project(month, h);
+        d += `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+    }
+    return d;
 }
 
-// t (0~1) → azimuth: t=0은 동(90°), t=0.5은 남(0°), t=1은 서(-90°)
-function timeToAzimuth(t: number): number {
-    return degToRad(90 - t * 180);
+/** 고스트 호(하지·동지)는 month 와 무관한 상수. */
+const GHOST_SUMMER = arcPath(6);
+const GHOST_WINTER = arcPath(12);
+const GHOST_SUMMER_LABEL = project(6, 15);
+const GHOST_WINTER_LABEL = project(12, 15);
+
+/** 일출~일몰 60점 표본. 고도(°)와 그림자 길이(m, 6 m 클램프). */
+function sampleDay(month: number) {
+    const decl = declination(month);
+    const { sunrise, sunset } = sunTimes(KOREA_LAT, decl);
+    const altitude: number[] = [];
+    const shadow: number[] = [];
+    for (let i = 0; i < SAMPLES; i++) {
+        const h = sunrise + ((sunset - sunrise) * i) / (SAMPLES - 1);
+        const a = sunAltitude(KOREA_LAT, decl, hourAngle(h));
+        altitude.push(Math.max(0, a));
+        shadow.push(Math.min(shadowLength(1, a), 6));
+    }
+    return { altitude, shadow };
 }
 
-function SunMesh({ timeT, displayAltitude }: { timeT: number; displayAltitude: number }) {
-    const sunMap = useTexture(getTexturePath('sun'));
-    // getSunPosition3D와 동일한 계산 사용 - 궤적과 일치
-    const pos = getSunPosition3D(timeT);
+/* === 하늘 색: 고도로 선형 보간 === */
+type RGB = [number, number, number];
+const NIGHT: RGB = [11, 16, 38];
+const DUSK: RGB = [214, 122, 58];
+const DAY: RGB = [96, 165, 226];
 
-    return (
-        <group>
-            <mesh position={[pos.x, pos.y, pos.z]}>
-                <sphereGeometry args={[0.8, 16, 16]} />
-                <meshBasicMaterial map={sunMap} />
-                <pointLight intensity={1.5} distance={50} color="#fbbf24" />
-            </mesh>
-            <Html position={[pos.x, pos.y + 1.5, pos.z]} center style={{ whiteSpace: 'nowrap' }}>
-                <div style={{
-                    color: '#fbbf24', fontSize: '0.75rem', fontFamily: 'var(--font-mono)',
-                    background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: 4,
-                    whiteSpace: 'nowrap',
-                }}>
-                    ☀️ {Math.round(displayAltitude)}°
-                </div>
-            </Html>
-        </group>
-    );
+function mix(a: RGB, b: RGB, t: number): RGB {
+    const k = Math.max(0, Math.min(1, t));
+    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+}
+function hex(c: RGB, scale = 1): string {
+    const h = c.map((v) => Math.round(Math.max(0, Math.min(255, v * scale))).toString(16).padStart(2, '0'));
+    return `#${h.join('')}`;
+}
+function skyColor(alt: number): RGB {
+    if (alt <= -6) return NIGHT;
+    if (alt < 4) return mix(NIGHT, DUSK, (alt + 6) / 10);
+    return mix(DUSK, DAY, (alt - 4) / 26);
 }
 
-const PEAK_ALTITUDE = 76; // 남중 고도 (여름 기준)
-const SUN_DIST = 12;
-
-// t (0~1) 기준으로 태양의 3D 좌표 계산 (단순한 반원 궤적)
-// 동(+x) → 남쪽 하늘 최고점 → 서(-x) 방향으로 이동
-function getSunPosition3D(t: number): THREE.Vector3 {
-    // x: 동(+)에서 서(-)로 직선 이동 (cos 사용)
-    const x = Math.cos(t * Math.PI) * SUN_DIST;
-
-    // y: 고도 - sin 곡선으로 0 → 최대 → 0
-    const altitudeRad = degToRad(Math.sin(t * Math.PI) * PEAK_ALTITUDE);
-    const y = Math.sin(altitudeRad) * SUN_DIST;
-
-    // z: 남쪽(-z)으로 약간 치우침 (남중 시 최대)
-    const z = -Math.sin(t * Math.PI) * 4;
-
-    return new THREE.Vector3(x, y, z);
+const SEASONS = [
+    { months: [3, 4, 5], name: '봄', emoji: '🌸' },
+    { months: [6, 7, 8], name: '여름', emoji: '☀️' },
+    { months: [9, 10, 11], name: '가을', emoji: '🍂' },
+    { months: [12, 1, 2], name: '겨울', emoji: '❄️' },
+];
+function seasonOf(month: number) {
+    const m = Math.round(month);
+    return SEASONS.find((s) => s.months.includes(m)) ?? SEASONS[0];
 }
 
-function SunTrajectory() {
-    const pathPoints = useMemo(() => {
-        const pts: THREE.Vector3[] = [];
-        // 부드러운 반원 궤적
-        for (let t = 0; t <= 1; t += 0.01) {
-            pts.push(getSunPosition3D(t));
-        }
-        return pts;
-    }, []);
-    const pathGeo = useMemo(() => new THREE.BufferGeometry().setFromPoints(pathPoints), [pathPoints]);
-
-    return (
-        <line>
-            <bufferGeometry attach="geometry" {...pathGeo} />
-            <lineBasicMaterial color="#fbbf24" opacity={0.3} transparent />
-        </line>
-    );
-}
-
-/* 태양 조명 - getSunPosition3D와 동일한 위치 사용하여 구불거림 방지 */
-function SunDirectionalLight({ timeT }: { timeT: number }) {
-    const pos = getSunPosition3D(timeT);
-    return (
-        <directionalLight
-            position={[pos.x, pos.y, pos.z]}
-            intensity={1.2}
-            color="#fbbf24"
-        />
-    );
-}
-
-function TreeAndShadow({ altitude, azimuth }: { altitude: number; azimuth: number }) {
-    const treeHeight = 3;
-    const trunkHeight = 1.8;
-    const shadow = calcShadow(treeHeight, altitude);
-    const clampedShadow = Math.min(shadow, 20);
-
-    return (
-        <group>
-            {/* 나무 줄기 */}
-            <mesh position={[0, trunkHeight / 2, 0]}>
-                <cylinderGeometry args={[0.12, 0.18, trunkHeight, 8]} />
-                <meshStandardMaterial color="#6B4226" roughness={0.9} />
-            </mesh>
-            {/* 나무 수관 (잎) */}
-            <mesh position={[0, trunkHeight + 0.6, 0]}>
-                <sphereGeometry args={[0.9, 16, 16]} />
-                <meshStandardMaterial color="#2D7D3A" roughness={0.8} />
-            </mesh>
-            {/* 작은 수관 위 */}
-            <mesh position={[0, trunkHeight + 1.3, 0]}>
-                <sphereGeometry args={[0.55, 16, 16]} />
-                <meshStandardMaterial color="#3A9648" roughness={0.8} />
-            </mesh>
-
-            {/* 그림자 (나무 모양 타원) */}
-            <group rotation={[0, azimuth + Math.PI, 0]}>
-                <mesh position={[0, 0.01, clampedShadow / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <planeGeometry args={[1.5, clampedShadow]} />
-                    <meshBasicMaterial color="#000000" opacity={0.6} transparent />
-                </mesh>
-            </group>
-
-            {/* 흙 지면 (갈색 단색) */}
-            <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[24, 24]} />
-                <meshStandardMaterial color="#8B7355" roughness={1} />
-            </mesh>
-            {/* 지면 가장자리 잔디 */}
-            <mesh position={[0, -0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[10, 12, 64]} />
-                <meshStandardMaterial color="#4a6b3a" roughness={1} transparent opacity={0.5} />
-            </mesh>
-
-            {/* 방위 표시 — 가독성 개선 */}
-            <Html position={[0, 0.3, -10]} center style={{ whiteSpace: 'nowrap' }}>
-                <div style={{ color: '#818cf8', fontSize: '0.8rem', fontWeight: 'bold', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.5)', padding: '2px 8px', borderRadius: 4 }}>⬇ 남(S)</div>
-            </Html>
-            <Html position={[10, 0.3, 0]} center style={{ whiteSpace: 'nowrap' }}>
-                <div style={{ color: '#4ade80', fontSize: '0.8rem', fontWeight: 'bold', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.5)', padding: '2px 8px', borderRadius: 4 }}>→ 동(E)</div>
-            </Html>
-            <Html position={[-10, 0.3, 0]} center style={{ whiteSpace: 'nowrap' }}>
-                <div style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 'bold', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.5)', padding: '2px 8px', borderRadius: 4 }}>← 서(W)</div>
-            </Html>
-            <Html position={[0, 0.3, 10]} center style={{ whiteSpace: 'nowrap' }}>
-                <div style={{ color: '#94a3b8', fontSize: '0.75rem', whiteSpace: 'nowrap', background: 'rgba(0,0,0,0.5)', padding: '2px 8px', borderRadius: 4 }}>⬆ 북(N)</div>
-            </Html>
-        </group>
-    );
-}
-
-/* 자동으로 그려지는 그래프 (슬라이더 위치까지만 채움) */
-function AutoGraph({ t, data, label, color, yRange, unit }: {
+/* === Inspector 그래프 === */
+function AutoGraph({ t, data, label, color, yRange, unit, current }: {
     t: number;
-    data: { x: number; y: number }[];
+    /** y 값 배열 (x 는 등간격) */
+    data: number[];
     label: string;
     color: string;
     yRange: [number, number];
     unit: string;
+    /** 현재 시각의 값. 마커·수치는 이 값을 그대로 쓴다. */
+    current: number;
 }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -190,13 +120,12 @@ function AutoGraph({ t, data, label, color, yRange, unit }: {
 
         const w = canvas.width;
         const h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
+        const toY = (v: number) => h - ((v - yRange[0]) / (yRange[1] - yRange[0])) * h;
 
-        // Background
+        ctx.clearRect(0, 0, w, h);
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.fillRect(0, 0, w, h);
 
-        // Grid
         ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.lineWidth = 0.5;
         for (let i = 0; i <= 6; i++) {
@@ -208,206 +137,275 @@ function AutoGraph({ t, data, label, color, yRange, unit }: {
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
         }
 
-        // 전체 경로 (반투명)
-        ctx.strokeStyle = `${color}33`;
+        // 전체 곡선 (반투명)
+        ctx.strokeStyle = `${color}44`;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        data.forEach((d, i) => {
-            const x = (i / (data.length - 1)) * w;
-            const y = h - ((d.y - yRange[0]) / (yRange[1] - yRange[0])) * h;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        data.forEach((y, i) => {
+            const px = (i / (data.length - 1)) * w;
+            const py = toY(y);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         });
         ctx.stroke();
 
-        // 현재까지 채워진 경로 (진한 색)
+        // 현재 시각까지 (진한 색)
         const fillIdx = t * (data.length - 1);
         ctx.strokeStyle = color;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        for (let i = 0; i <= Math.ceil(fillIdx); i++) {
-            const progress = Math.min(i, fillIdx);
-            const frac = progress - Math.floor(progress);
-            const lo = Math.floor(progress);
-            const hi = Math.min(lo + 1, data.length - 1);
-            const yVal = data[lo].y + (data[hi].y - data[lo].y) * frac;
-
-            const x = (progress / (data.length - 1)) * w;
-            const y = h - ((yVal - yRange[0]) / (yRange[1] - yRange[0])) * h;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        for (let i = 0; i <= Math.floor(fillIdx); i++) {
+            const px = (i / (data.length - 1)) * w;
+            const py = toY(data[i]);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         }
+        ctx.lineTo(t * w, toY(current));
         ctx.stroke();
 
         // 현재 위치 마커
-        const currentVal = interpolateData(t);
-        const currentY = label.includes('고도') ? currentVal.altitude : label.includes('그림자') ? currentVal.shadowLength : currentVal.temperature;
-        const markerX = t * w;
-        const markerY = h - ((currentY - yRange[0]) / (yRange[1] - yRange[0])) * h;
-
+        const mx = t * w;
+        const my = toY(current);
         ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(markerX, markerY, 6, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(mx, my, 6, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(markerX, markerY, 3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2); ctx.fill();
 
-        // 라벨
         ctx.fillStyle = color;
         ctx.font = 'bold 11px sans-serif';
         ctx.fillText(label, 4, 14);
 
-        // 현재 값
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 10px monospace';
-        ctx.fillText(`${currentY.toFixed(1)}${unit}`, w - 60, 14);
+        ctx.textAlign = 'right';
+        ctx.fillText(`${current.toFixed(1)}${unit}`, w - 4, 14);
+        ctx.textAlign = 'left';
 
-        // Y축 라벨
         ctx.fillStyle = 'rgba(255,255,255,0.4)';
         ctx.font = '9px sans-serif';
-        ctx.fillText(`${yRange[1]}`, 2, 10);
-        ctx.fillText(`${yRange[0]}`, 2, h - 2);
-    }, [t, data, label, color, yRange, unit]);
+        ctx.fillText(`${yRange[1]}`, 2, 26);
+        ctx.fillText(`${yRange[0]}`, 2, h - 3);
+    }, [t, data, label, color, yRange, unit, current]);
 
     return (
         <canvas
             ref={canvasRef}
-            width={340}
+            width={320}
             height={90}
             style={{ width: '100%', height: 90, borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)' }}
         />
     );
 }
 
-function AutoPlay({ timeT, setTimeT, setIsPlaying }: {
-    timeT: number;
-    setTimeT: React.Dispatch<React.SetStateAction<number>>;
-    setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
-}) {
+export default function DailyShadowLab() {
+    const month = useSeasonStore((s) => s.month);
+    const setMonth = useSeasonStore((s) => s.setMonth);
+
+    const decl = declination(month);
+    const { sunrise, sunset, dayLength } = sunTimes(KOREA_LAT, decl);
+
+    const [hour, setHour] = useState(12);
+    const [playing, setPlaying] = useState(false);
+
+    // 계절이 바뀌면 일출~일몰 범위가 달라진다. 남중으로 리셋(렌더 중 조정 패턴).
+    const [prevMonth, setPrevMonth] = useState(month);
+    if (prevMonth !== month) {
+        setPrevMonth(month);
+        setHour(12);
+        setPlaying(false);
+    }
+
+    // ▶ 재생: 일출→일몰 12초
     useEffect(() => {
-        let raf: number;
-        let lastTime = 0;
-        const animate = (ts: number) => {
-            if (lastTime) {
-                const delta = (ts - lastTime) / 1000;
-                setTimeT((prev: number) => {
-                    const next = prev + delta * 0.08; // ~12 seconds full cycle
-                    if (next >= 1) {
-                        setIsPlaying(false);
-                        return 1;
-                    }
-                    return next;
+        if (!playing) return;
+        const span = sunset - sunrise;
+        let raf = 0;
+        let prev = 0;
+        const step = (ts: number) => {
+            if (prev) {
+                const d = ((ts - prev) / 1000) * (span / 12);
+                setHour((h) => {
+                    if (h + d >= sunset) { setPlaying(false); return sunset; }
+                    return h + d;
                 });
             }
-            lastTime = ts;
-            raf = requestAnimationFrame(animate);
+            prev = ts;
+            raf = requestAnimationFrame(step);
         };
-        raf = requestAnimationFrame(animate);
+        raf = requestAnimationFrame(step);
         return () => cancelAnimationFrame(raf);
-    }, [setTimeT, setIsPlaying]);
-    return null;
-}
+    }, [playing, sunrise, sunset]);
 
-export default function DailyShadowLab() {
-    const [timeT, setTimeT] = useState(0); // 0~1, 시작은 동쪽(일출)
-    const [isPlaying, setIsPlaying] = useState(false);
-    const current = interpolateData(timeT);
-    const azimuth = timeToAzimuth(timeT);
+    const alt = sunAltitude(KOREA_LAT, decl, hourAngle(hour));
+    const sun = project(month, hour);
+    const meridian = project(month, 12);
+    const night = alt <= 0;
 
-    const altData = dailyShadowData.map((d, i) => ({ x: i, y: d.altitude }));
-    const shadowData = dailyShadowData.map((d, i) => ({ x: i, y: d.shadowLength }));
-    const tempData = dailyShadowData.map((d, i) => ({ x: i, y: d.temperature }));
+    const shadowM = shadowLength(1, alt);
+    const rawShadowPx = shadowM * STICK_PX;
+    const shadowPx = Math.min(rawShadowPx, SHADOW_MAX_PX);
+    const shadowClamped = !(rawShadowPx <= SHADOW_MAX_PX);
+    const shadowDir = sun.x < CX ? 1 : -1;
+    const shadowEnd = CX + shadowDir * shadowPx;
+
+    const currentArc = useMemo(() => arcPath(month), [month]);
+
+    // 일출~일몰 60점 샘플. 그래프 두 개가 같은 표본을 쓴다.
+    const series = useMemo(() => sampleDay(month), [month]);
+
+    const t = sunset > sunrise ? Math.max(0, Math.min(1, (hour - sunrise) / (sunset - sunrise))) : 0;
+    const isNoon = Math.abs(hour - 12) < 0.06;
+    const season = seasonOf(month);
+
+    // 고도각 호: 지평선 → 태양 시선
+    const sight = Math.atan2(HORIZON_Y - sun.y, sun.x - CX);
+    const rightSide = sun.x >= CX;
+    const arcStart = rightSide ? 0 : Math.PI;
+    const arcSweep = rightSide ? 0 : 1;
+    const arcMid = (arcStart + sight) / 2;
+    const polar = (r: number, a: number) => `${(CX + r * Math.cos(a)).toFixed(1)} ${(HORIZON_Y - r * Math.sin(a)).toFixed(1)}`;
+
+    const sky = skyColor(alt);
 
     return (
-        <>
-            <Canvas camera={{ position: [0, 14, 18], fov: 55 }} style={{ background: '#0a0e1a' }}>
-                <ambientLight intensity={0.4} />
-                <SunDirectionalLight timeT={timeT} />
-                <SunTrajectory />
-                <SunMesh timeT={timeT} displayAltitude={current.altitude} />
-                <TreeAndShadow altitude={current.altitude} azimuth={azimuth} />
-                <OrbitControls enablePan={false} maxDistance={30} minDistance={5} />
-            </Canvas>
+        <SimLayout>
+            <SimStage>
+                <svg viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%' }}>
+                    <defs>
+                        <linearGradient id="dsl-sky" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={hex(sky, 0.5)} />
+                            <stop offset="100%" stopColor={hex(sky)} />
+                        </linearGradient>
+                        <radialGradient id="dsl-glow">
+                            <stop offset="35%" stopColor="#fde68a" stopOpacity="0.55" />
+                            <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+                        </radialGradient>
+                    </defs>
 
-            {/* Measurements */}
-            <div style={{
-                position: 'absolute', top: 16, left: 16, zIndex: 40,
-                display: 'flex', gap: 8, flexWrap: 'wrap',
-            }}>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>시각</div>
-                    <div style={{ fontSize: '1.1rem', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{formatTime(current.hour)}</div>
-                </div>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>태양 고도</div>
-                    <div style={{ fontSize: '1.1rem', fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>{current.altitude.toFixed(1)}°</div>
-                </div>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>그림자 길이</div>
-                    <div style={{ fontSize: '1.1rem', fontFamily: 'var(--font-mono)', color: '#818cf8' }}>{current.shadowLength.toFixed(1)}cm</div>
-                </div>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>기온</div>
-                    <div style={{ fontSize: '1.1rem', fontFamily: 'var(--font-mono)', color: '#ef4444' }}>{current.temperature.toFixed(1)}°C</div>
-                </div>
-            </div>
+                    <rect x="0" y="0" width="1000" height={HORIZON_Y} fill="url(#dsl-sky)" />
+                    <rect x="0" y={HORIZON_Y} width="1000" height={560 - HORIZON_Y} fill="#453a2c" />
 
-            {/* Auto-drawing Graphs */}
-            <div className="graph-panel">
-                <div className="graph-title">📊 시간에 따른 변화 그래프 (슬라이더를 움직여 보세요!)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <AutoGraph t={timeT} data={altData} label="태양 고도 (°)" color="#fbbf24" yRange={[30, 80]} unit="°" />
-                    <AutoGraph t={timeT} data={shadowData} label="그림자 길이 (cm)" color="#818cf8" yRange={[0, 120]} unit="cm" />
-                    <AutoGraph t={timeT} data={tempData} label="기온 (°C)" color="#ef4444" yRange={[25, 35]} unit="°C" />
-                </div>
-            </div>
+                    {/* 하지·동지 고스트 호 */}
+                    <path d={GHOST_SUMMER} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 8" opacity="0.5" />
+                    <path d={GHOST_WINTER} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 8" opacity="0.5" />
+                    <text x={GHOST_SUMMER_LABEL.x + 10} y={GHOST_SUMMER_LABEL.y - 10} fontSize="15" fill="#cbd5e1">하지(6월)</text>
+                    <text x={GHOST_WINTER_LABEL.x + 10} y={GHOST_WINTER_LABEL.y - 10} fontSize="15" fill="#cbd5e1">동지(12월)</text>
 
-            {/* Auto play */}
-            {isPlaying && (
-                <AutoPlay timeT={timeT} setTimeT={setTimeT} setIsPlaying={setIsPlaying} />
-            )}
+                    {/* 현재 달의 태양 궤적 */}
+                    <path d={currentArc} fill="none" stroke="#fbbf24" strokeWidth="3" opacity="0.9" />
 
-            {/* Time Slider */}
-            <div style={{
-                position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-                background: 'var(--bg-glass)', backdropFilter: 'blur(12px)',
-                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)',
-                padding: '12px 24px', zIndex: 50, display: 'flex', alignItems: 'center', gap: 16,
-                minWidth: 450,
-            }}>
-                <button className={`control-btn ${isPlaying ? 'active' : ''}`}
-                    onClick={() => { setIsPlaying(!isPlaying); if (timeT >= 0.99) setTimeT(0); }}
-                    style={{ fontSize: '1.2rem', padding: '6px 10px' }}>
-                    {isPlaying ? '⏸' : '▶'}
-                </button>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>동(일출)</span>
-                <div style={{ flex: 1 }}>
-                    <div style={{ textAlign: 'center', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', color: '#fbbf24', marginBottom: 4 }}>
-                        🕐 {formatTime(current.hour)}
-                    </div>
-                    <input
-                        type="range" className="slider-input" style={{ width: '100%' }}
-                        min={0} max={1} step={0.005}
-                        value={timeT}
-                        onChange={(e) => { setTimeT(parseFloat(e.target.value)); setIsPlaying(false); }}
-                    />
-                </div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>서(일몰)</span>
-            </div>
-        </>
+                    {/* 정남 남중 표시 */}
+                    <line x1={CX} y1={HORIZON_Y} x2={CX} y2={meridian.y} stroke="#fbbf24" strokeWidth="2" strokeDasharray="5 8" opacity="0.55" />
+
+                    {/* 지평선 */}
+                    <line x1="0" y1={HORIZON_Y} x2="1000" y2={HORIZON_Y} stroke="#e2e8f0" strokeWidth="3" />
+
+                    {/* 그림자 (지평선 위 반투명 검정) */}
+                    {!night && (
+                        <>
+                            <line x1={CX} y1={HORIZON_Y + 6} x2={shadowEnd} y2={HORIZON_Y + 6}
+                                stroke="#000000" strokeOpacity="0.55" strokeWidth="14" />
+                            {shadowClamped && (
+                                <text x={shadowEnd + shadowDir * 16} y={HORIZON_Y + 12} fontSize="22" fill="#e2e8f0"
+                                    textAnchor={shadowDir > 0 ? 'start' : 'end'}>…</text>
+                            )}
+                            <text x={(CX + shadowEnd) / 2} y={HORIZON_Y + 34} fontSize="15" fill="#c7d2fe" textAnchor="middle">
+                                그림자 {shadowM.toFixed(2)} m
+                            </text>
+                        </>
+                    )}
+
+                    {/* 1 m 막대 */}
+                    <rect x={CX - 5} y={HORIZON_Y - STICK_PX} width="10" height={STICK_PX} fill="#e2e8f0" rx="3" />
+                    <text x={CX - 14} y={HORIZON_Y - STICK_PX + 16} fontSize="15" fill="#e2e8f0" textAnchor="end">1 m 막대</text>
+
+                    {/* 고도각 호 + 시선 */}
+                    {!night && (
+                        <>
+                            <line x1={CX} y1={HORIZON_Y} x2={sun.x} y2={sun.y} stroke="#fde68a" strokeWidth="1.5" strokeDasharray="4 6" opacity="0.7" />
+                            <path d={`M${polar(ALT_ARC_R, arcStart)} A${ALT_ARC_R} ${ALT_ARC_R} 0 0 ${arcSweep} ${polar(ALT_ARC_R, sight)}`}
+                                fill="none" stroke="#fbbf24" strokeWidth="2.5" />
+                            <text x={CX + (ALT_ARC_R + 38) * Math.cos(arcMid)} y={HORIZON_Y - (ALT_ARC_R + 38) * Math.sin(arcMid)}
+                                fontSize="18" fill="#fbbf24" textAnchor="middle" dominantBaseline="middle">
+                                {isNoon ? '남중 고도' : '고도'} {alt.toFixed(0)}°
+                            </text>
+                        </>
+                    )}
+
+                    {/* 태양 */}
+                    {!night && (
+                        <>
+                            <circle cx={sun.x} cy={sun.y} r="58" fill="url(#dsl-glow)" />
+                            <circle cx={sun.x} cy={sun.y} r="22" fill="#fde68a" stroke="#fbbf24" strokeWidth="3" />
+                            <text x={sun.x} y={sun.y - 34} fontSize="18" fill="#fde68a" textAnchor="middle">{formatHour(hour)}</text>
+                        </>
+                    )}
+
+                    {/* 방위 */}
+                    <text x="24" y="474" fontSize="20" fill="#4ade80">동(E)</text>
+                    <text x="976" y="474" fontSize="20" fill="#f59e0b" textAnchor="end">서(W)</text>
+                    <text x={CX} y="524" fontSize="18" fill="#cbd5e1" textAnchor="middle">남(S) ← 관측자가 보는 방향</text>
+                </svg>
+
+                <SimHud items={[
+                    { label: '시각', value: formatHour(hour) },
+                    { label: '태양 고도', value: `${alt.toFixed(1)}°`, color: '#fbbf24' },
+                    { label: '그림자 길이', value: night ? '—' : `${shadowM.toFixed(2)} m`, color: '#818cf8' },
+                    { label: '계절', value: `${season.emoji} ${season.name}` },
+                ]} />
+            </SimStage>
+
+            <SimInspector
+                title="☀️ 하루 동안 태양 고도와 그림자"
+                sections={[
+                    {
+                        id: 'desc', label: '설명', content: (
+                            <>
+                                <p style={{ marginTop: 0 }}>
+                                    태양이 높이 떠 있을수록 막대의 그림자는 짧아집니다. 태양 고도와 그림자 길이는 정반대로 움직입니다.
+                                    하루 중 태양이 정남쪽에 올 때(남중) 고도가 가장 높고, 그때 그림자가 가장 짧습니다.
+                                    같은 남중이라도 계절마다 남중 고도가 달라서, 여름에는 높고 겨울에는 낮습니다.
+                                    아래 프리셋으로 계절을 바꿔 가며 회색 점선(하지·동지) 궤적과 비교해 보세요.
+                                </p>
+                                <StatRow label="남중 고도" value={`${meridianAltitude(KOREA_LAT, decl).toFixed(1)}°`} />
+                                <StatRow label="낮 길이" value={`${dayLength.toFixed(1)}시간`} />
+                                <StatRow label="일출" value={formatHour(sunrise)} />
+                                <StatRow label="일몰" value={formatHour(sunset)} />
+                            </>
+                        ),
+                    },
+                    {
+                        id: 'graph', label: '그래프', content: (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <AutoGraph t={t} data={series.altitude} label="태양 고도 (°)" color="#fbbf24"
+                                    yRange={[0, 80]} unit="°" current={Math.max(0, alt)} />
+                                <AutoGraph t={t} data={series.shadow} label="그림자 길이 (m)" color="#818cf8"
+                                    yRange={[0, 6]} unit="m" current={Math.min(shadowM, 6)} />
+                            </div>
+                        ),
+                    },
+                ]}
+            />
+
+            <SimDock
+                play={{
+                    playing,
+                    onToggle: () => {
+                        if (!playing && hour >= sunset - 0.02) setHour(sunrise);
+                        setPlaying(!playing);
+                    },
+                }}
+                slider={{
+                    label: '시각',
+                    min: sunrise, max: sunset, step: 0.05, value: hour,
+                    onChange: (v) => { setHour(v); setPlaying(false); },
+                    display: formatHour(hour),
+                    ticks: [`일출 ${formatHour(sunrise)}`, '남중 12:00', `일몰 ${formatHour(sunset)}`],
+                }}
+                presets={[
+                    { label: '춘분 3월', onClick: () => setMonth(3), active: Math.round(month) === 3 },
+                    { label: '하지 6월', onClick: () => setMonth(6), active: Math.round(month) === 6 },
+                    { label: '동지 12월', onClick: () => setMonth(12), active: Math.round(month) === 12 },
+                ]}
+            />
+        </SimLayout>
     );
 }

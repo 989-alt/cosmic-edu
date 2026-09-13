@@ -1,185 +1,52 @@
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Html, useTexture } from '@react-three/drei';
-import { useState, useMemo } from 'react';
-import * as THREE from 'three';
-import { degToRad, energyDensity } from '../../utils/mathUtils';
-import InfoPanel, { StatRow } from '../../components/InfoPanel';
-import { getTexturePath } from '../../utils/texturePaths';
+import { useState } from 'react';
+import { degToRad } from '../../utils/mathUtils';
+import {
+    KOREA_LAT, declination, meridianAltitude, energyDensity, irradiatedArea,
+} from '../../utils/solar';
+import { useSeasonStore } from '../../store/seasonStore';
+import { SimLayout, SimStage, SimHud, SimDock, SimInspector, StatRow } from '../../components/SimLayout';
 
-function SunSource({ altitude }: { altitude: number }) {
-    const sunMap = useTexture(getTexturePath('sun'));
-    const rad = degToRad(altitude);
-    const x = 14 * Math.cos(rad);
-    const y = 12;
+/**
+ * 에너지 밀도 — 2D SVG "손전등 비유" 측면 도해.
+ * 폭이 고정된 평행 광선 다발이 고도각 θ 로 바닥에 닿으면 조사 구간이 1/sin(θ) 로 늘어난다.
+ * 물리량(밀도·퍼짐 배율·남중 고도)은 전부 solar.ts 에서 받고, 여기서는 좌표만 만든다.
+ */
 
-    return (
-        <mesh position={[x, y, 0]}>
-            <sphereGeometry args={[1.5, 16, 16]} />
-            <meshBasicMaterial map={sunMap} />
-            <pointLight intensity={2} distance={50} color="#fbbf24" />
-        </mesh>
-    );
+/* 도해 좌표 (viewBox 1000×560) */
+const VIEW_W = 1000;
+const GROUND_Y = 430;      // 지평선
+const CENTER_X = 500;      // 다발 중심선이 바닥과 만나는 점
+const BEAM_W = 160;        // 광선 다발 폭(고정). 이 폭을 100 cm 로 환산해 표기한다.
+const RAY_COUNT = 8;
+const MAX_BAND = 900;      // 조사 구간 표시 최대 폭
+const SUN_R = 30;
+const SUN_DIST = 480;
+
+/** 바닥 조사 구간 색: 밀도 1 = 빨강(집중), 0 = 파랑(분산). */
+function heatColor(density: number): string {
+    const t = Math.max(0, Math.min(1, density));
+    const mix = (a: number, b: number) => Math.round(a + (b - a) * t).toString(16).padStart(2, '0');
+    return `#${mix(0x3b, 0xef)}${mix(0x82, 0x44)}${mix(0xf6, 0x44)}`;
 }
 
-function LightBeams({ altitude }: { altitude: number }) {
-    const rad = degToRad(altitude);
-    // 태양 위치 (SunSource와 동일)
-    const sunX = 14 * Math.cos(rad);
-    const sunY = 12;
-
-    // 고도에 따른 빔 특성 변화
-    const t = Math.max(0, Math.min(1, (altitude - 20) / 60)); // 0(겨울) ~ 1(여름) 정규화
-    const beamThickness = 0.06 * t + 0.015;
-
-    // 원형으로 퍼지는 빔 — 고도가 높으면 좁게, 낮으면 넓게
-    // 그리드 크기(10)의 절반(5)을 넘지 않도록 제한
-    const rawSpreadRadius = 0.8 + (1 - t) * 3.5; // 여름 0.8, 겨울 4.3
-    const spreadRadius = Math.min(rawSpreadRadius, 4.5); // 그리드 내부로 제한
-    const ringCount = 3; // 동심원 링 수
-    const ringsBeams = [1, 6, 12]; // 각 링의 빔 수 (중심, 1번째, 2번째 링)
-
-    // 모든 빔의 지면 타격 좌표 생성 (원형 패턴)
-    const beamTargets = useMemo(() => {
-        const targets: { gx: number; gz: number }[] = [];
-        for (let ring = 0; ring < ringCount; ring++) {
-            const count = ringsBeams[ring];
-            const r = (ring / (ringCount - 1)) * spreadRadius;
-            for (let i = 0; i < count; i++) {
-                const angle = (i / count) * Math.PI * 2;
-                targets.push({
-                    gx: ring === 0 ? 0 : Math.cos(angle) * r,
-                    gz: ring === 0 ? 0 : Math.sin(angle) * r,
-                });
-            }
-        }
-        return targets;
-    }, [spreadRadius]);
-
-    return (
-        <group>
-            {beamTargets.map((target, i) => {
-                const groundY = 0.05;
-                const dx = target.gx - sunX;
-                const dy = groundY - sunY;
-                const dz = target.gz - 0; // 태양 z=0
-                const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-                // 중점
-                const cx = (sunX + target.gx) / 2;
-                const cy = (sunY + groundY) / 2;
-                const cz = target.gz / 2;
-
-                // 방향 벡터로 회전 계산
-                const dir = new THREE.Vector3(dx, dy, dz).normalize();
-                const up = new THREE.Vector3(0, 1, 0);
-                const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
-                const euler = new THREE.Euler().setFromQuaternion(quat);
-
-                return (
-                    <mesh key={i} position={[cx, cy, cz]} rotation={euler}>
-                        <cylinderGeometry args={[beamThickness, beamThickness, length, 4]} />
-                        <meshBasicMaterial color="#fbbf24" opacity={0.35 + t * 0.2} transparent />
-                    </mesh>
-                );
-            })}
-            {/* 빔 끝에 화살표 헤드 */}
-            {beamTargets.map((target, i) => {
-                const dx = target.gx - sunX;
-                const dy = 0.05 - sunY;
-                const dz = target.gz;
-                const dir = new THREE.Vector3(dx, dy, dz).normalize();
-                const up = new THREE.Vector3(0, 1, 0);
-                const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
-                const euler = new THREE.Euler().setFromQuaternion(quat);
-                return (
-                    <mesh key={`arrow-${i}`} position={[target.gx, 0.1, target.gz]} rotation={euler}>
-                        <coneGeometry args={[beamThickness * 2.5, 0.3, 6]} />
-                        <meshBasicMaterial color="#fbbf24" opacity={0.7} transparent />
-                    </mesh>
-                );
-            })}
-            {/* 지면 조사 면적 표시 (원형) */}
-            <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <circleGeometry args={[spreadRadius, 32]} />
-                <meshBasicMaterial
-                    color={t > 0.6 ? '#ef4444' : t > 0.3 ? '#fbbf24' : '#3b82f6'}
-                    opacity={0.15}
-                    transparent
-                />
-            </mesh>
-            {/* 원형 테두리 */}
-            <mesh position={[0, 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[spreadRadius - 0.05, spreadRadius + 0.05, 64]} />
-                <meshBasicMaterial
-                    color={t > 0.6 ? '#ef4444' : t > 0.3 ? '#fbbf24' : '#3b82f6'}
-                    opacity={0.4}
-                    transparent
-                />
-            </mesh>
-            {/* 면적 라벨 */}
-            <Html position={[0, -0.5, spreadRadius + 1]} center style={{ whiteSpace: 'nowrap' }}>
-                <div style={{
-                    color: t > 0.6 ? '#ef4444' : t > 0.3 ? '#fbbf24' : '#3b82f6',
-                    fontSize: '0.7rem', fontFamily: 'var(--font-mono)',
-                    background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: 4,
-                    whiteSpace: 'nowrap',
-                }}>
-                    조사 면적: {t > 0.6 ? '좁음 (에너지 집중)' : t > 0.3 ? '보통' : '넓음 (에너지 분산)'}
-                </div>
-            </Html>
-        </group>
-    );
+/**
+ * 바닥 (gx, gy) 에 닿는 광선이 상자 밖(left/top)으로 나가는 시작점.
+ * 광선 진행 방향은 (cos θ, sin θ) — 화면 좌표라 y 는 아래가 양수다.
+ */
+function rayStart(gx: number, gy: number, rad: number, left: number, top: number) {
+    const c = Math.cos(rad), s = Math.sin(rad);
+    let k = (gy - top) / s;
+    if (c > 1e-6) k = Math.min(k, (gx - left) / c);
+    return { x: gx - k * c, y: gy - k * s };
 }
 
-function EarthGround({ altitude }: { altitude: number }) {
-    const earthMap = useTexture(getTexturePath('earthDay'));
-    const density = energyDensity(altitude);
-    const gridSize = 10;
-    const cellCount = 10;
-
-    const heatOverlay = useMemo(() => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d')!;
-
-        for (let i = 0; i < cellCount; i++) {
-            for (let j = 0; j < cellCount; j++) {
-                const cx = (i + 0.5) / cellCount;
-                const cy = (j + 0.5) / cellCount;
-                const distFromCenter = Math.sqrt((cx - 0.5) ** 2 + (cy - 0.5) ** 2) * 2;
-                const localDensity = Math.max(0, density * (1 - distFromCenter * 0.3));
-
-                const r = Math.round(localDensity * 255);
-                const b = Math.round((1 - localDensity) * 200);
-                ctx.fillStyle = `rgba(${r}, ${Math.round(localDensity * 60)}, ${b}, 0.6)`;
-                ctx.fillRect(i * 12.8, j * 12.8, 12.8, 12.8);
-            }
-        }
-
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.needsUpdate = true;
-        return tex;
-    }, [altitude, density]);
-
-    return (
-        <group>
-            {/* 지구 텍스처 바닥 */}
-            <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[gridSize, gridSize]} />
-                <meshStandardMaterial map={earthMap} roughness={0.9} />
-            </mesh>
-            {/* 히트맵 오버레이 */}
-            <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <planeGeometry args={[gridSize, gridSize]} />
-                <meshBasicMaterial map={heatOverlay} transparent />
-            </mesh>
-            <gridHelper args={[gridSize, cellCount, '#ffffff33', '#ffffff11']} position={[0, 0.02, 0]} />
-        </group>
-    );
+/** 광선 끝 화살촉. */
+function arrowHead(gx: number, gy: number, rad: number, size: number): string {
+    const c = Math.cos(rad), s = Math.sin(rad);
+    const bx = gx - size * c, by = gy - size * s;
+    const w = size * 0.36;
+    return `${gx},${gy} ${bx - w * -s},${by - w * c} ${bx + w * -s},${by + w * c}`;
 }
-
-
 
 function getSeasonLabel(altitude: number): { label: string; emoji: string; color: string } {
     if (altitude >= 70) return { label: '여름 (하지 전후)', emoji: '☀️', color: '#ef4444' };
@@ -188,125 +55,217 @@ function getSeasonLabel(altitude: number): { label: string; emoji: string; color
     return { label: '겨울 (동지 전후)', emoji: '❄️', color: '#3b82f6' };
 }
 
-export default function EnergyDensity() {
-    const [altitude, setAltitude] = useState(60);
-    const density = energyDensity(altitude);
-    const area = 1 / Math.max(Math.sin(degToRad(altitude)), 0.01);
-    const season = getSeasonLabel(altitude);
+/** 우상단 비교 미니 도해 하나 (180×120 로컬 좌표). */
+function MiniSpread({ x, y, altitude, caption }: { x: number; y: number; altitude: number; caption: string }) {
+    const rad = degToRad(altitude);
+    const sin = Math.sin(rad);
+    const w = 34;
+    const band = Math.min(w / sin, 170);
+    const gy = 88;
+    const color = heatColor(energyDensity(altitude));
 
     return (
-        <>
-            <Canvas camera={{ position: [8, 10, 12], fov: 45 }} style={{ background: '#0a0e1a' }}>
-                <ambientLight intensity={0.4} />
-                <SunSource altitude={altitude} />
-                <LightBeams altitude={altitude} />
-                <EarthGround altitude={altitude} />
+        <g transform={`translate(${x}, ${y})`}>
+            <rect x={0} y={0} width={180} height={120} rx={8} fill="#0f172a" stroke="#334155" />
+            <g clipPath="url(#mini-clip)">
+                {[-w / 2, 0, w / 2].map((s, i) => {
+                    const gx = 90 - s / sin;
+                    const st = rayStart(gx, gy, rad, 2, 2);
+                    return <line key={i} x1={st.x} y1={st.y} x2={gx} y2={gy} stroke="#fbbf24" strokeWidth={2} opacity={0.8} />;
+                })}
+                <line x1={4} y1={gy} x2={176} y2={gy} stroke="#78716c" strokeWidth={2} />
+                <rect x={90 - band / 2} y={gy - 3} width={band} height={7} rx={3} fill={color} />
+            </g>
+            <text x={90} y={110} fontSize={14} fill="#e2e8f0" textAnchor="middle">{caption}</text>
+        </g>
+    );
+}
 
-                <OrbitControls enablePan={false} maxDistance={30} minDistance={5} />
-            </Canvas>
+export default function EnergyDensity() {
+    const month = useSeasonStore((s) => s.month);
+    const setMonth = useSeasonStore((s) => s.setMonth);
+    const [altitude, setAltitude] = useState(() => meridianAltitude(KOREA_LAT, declination(month)));
 
-            {/* Altitude slider with season label */}
-            <div style={{
-                position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-                background: 'var(--bg-glass)', backdropFilter: 'blur(12px)',
-                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-xl)',
-                padding: '12px 24px', zIndex: 50, display: 'flex', alignItems: 'center', gap: 16,
-            }}>
-                <div style={{
-                    fontSize: '1.2rem', minWidth: 32, textAlign: 'center'
-                }}>{season.emoji}</div>
-                <div className="slider-container" style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="slider-label">태양 고도: {altitude}°</span>
-                        <span style={{ fontSize: '0.7rem', color: season.color, fontWeight: 'bold' }}>{season.label}</span>
-                    </div>
-                    <div style={{ position: 'relative' }}>
-                        <input type="range" className="slider-input" style={{ width: '100%', minWidth: 250 }}
-                            min={5} max={90} step={1}
-                            value={altitude} onChange={(e) => setAltitude(parseInt(e.target.value))} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                            <span>❄️ 겨울</span>
-                            <span>☀️ 여름</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    const rad = degToRad(altitude);
+    const sin = Math.sin(rad), cos = Math.cos(rad);
+    const density = energyDensity(altitude);
+    const area = irradiatedArea(altitude);
+    const season = getSeasonLabel(altitude);
+    const color = heatColor(density);
+    const disp = Math.round(altitude * 10) / 10;
 
-            {/* Measurement cards */}
-            <div style={{
-                position: 'absolute', top: 16, left: 16, zIndex: 40,
-                display: 'flex', gap: 8, flexWrap: 'wrap',
-            }}>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>태양 고도</div>
-                    <div style={{ fontSize: '1.2rem', fontFamily: 'var(--font-mono)', color: '#fbbf24' }}>{altitude}°</div>
-                </div>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>조사 면적 배율</div>
-                    <div style={{ fontSize: '1.2rem', fontFamily: 'var(--font-mono)', color: '#818cf8' }}>{area.toFixed(1)}배</div>
-                </div>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)', backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>에너지 밀도</div>
-                    <div style={{ fontSize: '1.2rem', fontFamily: 'var(--font-mono)', color: '#ef4444' }}>{Math.round(density * 100)}%</div>
-                </div>
-                <div style={{
-                    background: 'var(--bg-glass)', padding: '10px 16px', borderRadius: 'var(--radius-sm)',
-                    border: `2px solid ${season.color}`, backdropFilter: 'blur(12px)',
-                }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>현재 계절</div>
-                    <div style={{ fontSize: '1rem', fontFamily: 'var(--font-sans)', color: season.color }}>{season.emoji} {season.label}</div>
-                </div>
-            </div>
+    /* 태양: 다발이 오는 방향(좌상)으로 SUN_DIST 만큼. 화면 밖으로 나가지 않게 거리를 줄인다. */
+    const sunDist = Math.min(SUN_DIST, (GROUND_Y - 150) / sin, cos > 1e-6 ? (CENTER_X - 50) / cos : Infinity);
+    const sunX = CENTER_X - sunDist * cos;
+    const sunY = GROUND_Y - sunDist * sin;
 
-            <InfoPanel title="🔥 에너지 밀도 시뮬레이터">
-                <p style={{ marginBottom: 12 }}>
-                    같은 양의 태양빛이라도, 비스듬히 비추면 넓은 면적에 퍼져 단위면적당 에너지가 줄어듭니다.
-                </p>
-                <div style={{ background: 'rgba(255,255,255,0.05)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
-                    <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: 4 }}>💡 손전등 비유</div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                        손전등을 바닥에 똑바로 비추면 빛이 좁고 밝게 모이지만(여름), 비스듬히 비추면 빛이 넓게 퍼져 흐려집니다(겨울).
-                    </p>
-                </div>
-                <StatRow label="빛이 퍼지는 정도" value={`${(area).toFixed(1)}배`} />
-                <StatRow label="바닥의 온도(밀도)" value={`${Math.round(density * 100)}%`} />
+    /* 조사 구간: 실제 길이는 BEAM_W/sin, 표시는 MAX_BAND 로 클램프 */
+    const bandFull = BEAM_W * area;
+    const band = Math.min(bandFull, MAX_BAND);
+    const clamped = bandFull > MAX_BAND;
+    const bandL = CENTER_X - band / 2, bandR = CENTER_X + band / 2;
+    const cm = Math.round(area * 100);
 
-                {/* Color Legend */}
-                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: 8 }}>
-                        🎨 바닥 색상 의미
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div style={{ width: 14, height: 14, borderRadius: 3, background: 'rgb(255, 60, 0)' }} />
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>🔴 빨강 = 에너지 밀집 (여름, 고도 높음)</span>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div style={{ width: 14, height: 14, borderRadius: 3, background: 'rgb(0, 0, 200)' }} />
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>🔵 파랑 = 에너지 분산 (겨울, 고도 낮음)</span>
-                        </div>
-                    </div>
-                </div>
+    /* 고도각 호: 바닥 중심에서 지평선(좌) → 광선이 오는 방향 */
+    const ARC_R = 90;
+    const arcPath = `M ${CENTER_X - ARC_R} ${GROUND_Y} A ${ARC_R} ${ARC_R} 0 0 1 ${CENTER_X - ARC_R * cos} ${GROUND_Y - ARC_R * sin}`;
+    const labRad = degToRad(180 + altitude / 2);
+    const labX = CENTER_X + 128 * Math.cos(labRad), labY = GROUND_Y + 128 * Math.sin(labRad);
 
-                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-                        <strong>💡 핵심:</strong> 여름(남중 고도 76.5°)에는 에너지가 집중되고,
-                        겨울(남중 고도 29.5°)에는 에너지가 넓게 퍼져서 기온이 낮습니다.
-                        이것이 <strong>같은 태양인데도 계절마다 기온이 다른 이유</strong>입니다!
-                    </p>
-                </div>
-            </InfoPanel>
-        </>
+    const presets = [
+        { label: '동지 29.6°', month: 12 },
+        { label: '춘·추분 53°', month: 3 },
+        { label: '하지 76.4°', month: 6 },
+    ];
+    const isActive = (m: number) => Math.abs(altitude - meridianAltitude(KOREA_LAT, declination(m))) <= 0.5;
+
+    const rows = [
+        { name: '하지 (6월)', month: 6 },
+        { name: '춘·추분 (3·9월)', month: 3 },
+        { name: '동지 (12월)', month: 12 },
+    ];
+
+    return (
+        <SimLayout>
+            <SimStage>
+                <svg viewBox={`0 0 ${VIEW_W} 560`} preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <clipPath id="mini-clip"><rect x={0} y={0} width={180} height={120} rx={8} /></clipPath>
+                    </defs>
+
+                    {/* 하늘 / 땅 */}
+                    <rect x={0} y={0} width={VIEW_W} height={GROUND_Y} fill="#0a0e1a" />
+                    <rect x={0} y={GROUND_Y} width={VIEW_W} height={560 - GROUND_Y} fill="#4a3524" />
+                    <line x1={0} y1={GROUND_Y} x2={VIEW_W} y2={GROUND_Y} stroke="#a8a29e" strokeWidth={3} />
+
+                    {/* 태양 */}
+                    <circle cx={sunX} cy={sunY} r={SUN_R} fill="#fbbf24" />
+                    <circle cx={sunX} cy={sunY} r={SUN_R + 10} fill="#fbbf24" opacity={0.2} />
+
+                    {/* 평행 광선 다발 8줄 (폭 고정 BEAM_W) */}
+                    {Array.from({ length: RAY_COUNT }, (_, i) => {
+                        const s = -BEAM_W / 2 + (i * BEAM_W) / (RAY_COUNT - 1);
+                        const gx = CENTER_X - s / sin;
+                        const st = rayStart(gx, GROUND_Y, rad, -60, -60);
+                        return (
+                            <g key={i}>
+                                <line x1={st.x} y1={st.y} x2={gx} y2={GROUND_Y} stroke="#fbbf24" strokeWidth={3} opacity={0.85} />
+                                <polygon points={arrowHead(gx, GROUND_Y, rad, 16)} fill="#fbbf24" />
+                            </g>
+                        );
+                    })}
+
+                    {/* 바닥 조사 구간 */}
+                    <rect x={bandL} y={GROUND_Y - 7} width={band} height={14} rx={7} fill={color} />
+                    <line x1={bandL} y1={GROUND_Y - 16} x2={bandL} y2={475} stroke="#fde68a" strokeWidth={2} />
+                    <line x1={bandR} y1={GROUND_Y - 16} x2={bandR} y2={475} stroke="#fde68a" strokeWidth={2} />
+                    <line x1={bandL} y1={470} x2={bandR} y2={470} stroke="#fde68a" strokeWidth={2} />
+                    {clamped && (
+                        <>
+                            <text x={bandL - 18} y={476} fontSize={20} fill="#fde68a" textAnchor="middle">…</text>
+                            <text x={bandR + 18} y={476} fontSize={20} fill="#fde68a" textAnchor="middle">…</text>
+                        </>
+                    )}
+                    <text x={CENTER_X} y={502} fontSize={20} fill="#fde68a" textAnchor="middle">{cm} cm</text>
+                    <text x={CENTER_X} y={528} fontSize={14} fill="#d6d3d1" textAnchor="middle">
+                        빛다발 폭 100 cm 가 바닥에서 {cm} cm 로 퍼진다
+                    </text>
+
+                    {/* 고도각 호 */}
+                    <path d={arcPath} fill="none" stroke="#67e8f9" strokeWidth={2} />
+                    <text x={labX} y={labY} fontSize={18} fill="#67e8f9" textAnchor="middle">고도 {disp}°</text>
+
+                    {/* 우상단 비교 미니 도해 */}
+                    <MiniSpread x={612} y={16} altitude={76.4} caption="여름 76°" />
+                    <MiniSpread x={804} y={16} altitude={30} caption="겨울 30°" />
+                </svg>
+
+                <SimHud items={[
+                    { label: '태양 고도', value: `${disp}°`, color: '#fbbf24' },
+                    { label: '조사 면적 배율', value: `${area.toFixed(1)}배`, color: '#818cf8' },
+                    { label: '에너지 밀도', value: `${Math.round(density * 100)}%`, color },
+                    { label: '계절', value: `${season.emoji} ${season.label}`, color: season.color },
+                ]} />
+            </SimStage>
+
+            <SimInspector
+                title="🔥 태양 고도와 에너지 밀도"
+                sections={[
+                    {
+                        id: 'explain', label: '설명', content: (
+                            <>
+                                <p style={{ marginTop: 0, marginBottom: 12 }}>
+                                    손전등을 바닥에 똑바로 비추면 빛이 좁고 밝게 모이지만(여름), 비스듬히 비추면
+                                    같은 양의 빛이 넓게 퍼져 흐려집니다(겨울). 태양도 똑같습니다 — 빛의 양은 그대로인데
+                                    고도가 낮을수록 바닥의 더 넓은 면적에 나뉘어 담기므로 단위면적당 에너지가 줄어듭니다.
+                                </p>
+                                <StatRow label="빛이 퍼지는 정도" value={`${area.toFixed(1)}배`} />
+                                <StatRow label="바닥 에너지 밀도" value={`${Math.round(density * 100)}%`} />
+                                <div style={{ marginTop: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: 8 }}>🎨 바닥 색 범례</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: '#ef4444' }} />
+                                        <span style={{ fontSize: '0.75rem' }}>빨강 = 에너지 집중 (고도 높음)</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: '#3b82f6' }} />
+                                        <span style={{ fontSize: '0.75rem' }}>파랑 = 에너지 분산 (고도 낮음)</span>
+                                    </div>
+                                </div>
+                            </>
+                        ),
+                    },
+                    {
+                        id: 'compare', label: '비교', content: (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                                <thead>
+                                    <tr style={{ color: 'var(--text-muted)' }}>
+                                        <th style={{ textAlign: 'left', padding: '6px 4px' }}>계절</th>
+                                        <th style={{ textAlign: 'right', padding: '6px 4px' }}>남중 고도</th>
+                                        <th style={{ textAlign: 'right', padding: '6px 4px' }}>퍼짐 배율</th>
+                                        <th style={{ textAlign: 'right', padding: '6px 4px' }}>밀도</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((r) => {
+                                        const alt = meridianAltitude(KOREA_LAT, declination(r.month));
+                                        const on = isActive(r.month);
+                                        return (
+                                            <tr key={r.month} style={{
+                                                borderTop: '1px solid var(--border-subtle)',
+                                                background: on ? 'rgba(99, 102, 241, 0.22)' : undefined,
+                                                color: on ? 'var(--text-primary)' : undefined,
+                                                fontWeight: on ? 700 : undefined,
+                                            }}>
+                                                <td style={{ padding: '6px 4px' }}>{r.name}</td>
+                                                <td style={{ textAlign: 'right', padding: '6px 4px', fontFamily: 'var(--font-mono)' }}>{alt.toFixed(1)}°</td>
+                                                <td style={{ textAlign: 'right', padding: '6px 4px', fontFamily: 'var(--font-mono)' }}>{irradiatedArea(alt).toFixed(1)}배</td>
+                                                <td style={{ textAlign: 'right', padding: '6px 4px', fontFamily: 'var(--font-mono)' }}>{Math.round(energyDensity(alt) * 100)}%</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        ),
+                    },
+                ]}
+            />
+
+            <SimDock
+                slider={{
+                    label: '태양 고도', min: 5, max: 90, step: 1, value: altitude,
+                    onChange: setAltitude, display: `${disp}°`,
+                    ticks: ['5° 낮음', '45°', '90° 머리 위'],
+                }}
+                presets={presets.map((p) => ({
+                    label: p.label,
+                    active: isActive(p.month),
+                    onClick: () => {
+                        setMonth(p.month);
+                        setAltitude(meridianAltitude(KOREA_LAT, declination(p.month)));
+                    },
+                }))}
+            />
+        </SimLayout>
     );
 }
